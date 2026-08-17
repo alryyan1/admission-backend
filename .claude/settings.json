@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(composer --version)",
+      "Bash(vendor/bin/pint --format agent app/Http/Middleware/EnsureUserHasRole.php app/Http/Kernel.php app/Models/Admission.php app/Http/Controllers/Api/VitalSignController.php app/Http/Controllers/Api/DoctorOrderController.php app/Http/Controllers/Api/AdmissionDepositController.php app/Http/Controllers/Api/RequestedServiceController.php app/Http/Controllers/Api/TreatmentDoseController.php app/Http/Requests/DischargeAdmissionRequest.php app/Http/Controllers/Api/BedController.php app/Http/Controllers/Api/AdmissionController.php routes/api.php tests/Feature/AdmissionTest.php tests/Feature/AdmissionRoleAuthorizationTest.php tests/Feature/WardRoomBedTest.php)",
+      "Bash(pip install *)",
+      "Bash(python3 -c ' *)",
+      "Bash(vendor/bin/pint --format agent database/migrations/2026_08_16_073147_create_floors_table.php database/migrations/2026_08_16_073148_create_wards_table.php database/migrations/2026_08_16_073149_create_rooms_table.php database/migrations/2026_08_16_073150_create_beds_table.php database/migrations/2026_08_16_092904_create_admissions_table.php app/Models/Floor.php app/Models/Ward.php app/Models/Room.php app/Models/Bed.php app/Models/Admission.php app/Http/Controllers/Api/FloorController.php app/Http/Controllers/Api/WardController.php app/Http/Controllers/Api/RoomController.php app/Http/Controllers/Api/BedController.php app/Http/Controllers/Api/AdmissionController.php app/Http/Controllers/Api/NursingAssignmentController.php app/Http/Controllers/Api/AdmissionInvoiceController.php app/Http/Requests/StoreFloorRequest.php app/Http/Requests/UpdateFloorRequest.php app/Http/Requests/StoreWardRequest.php app/Http/Requests/UpdateWardRequest.php app/Http/Requests/StoreRoomRequest.php app/Http/Requests/UpdateRoomRequest.php app/Http/Requests/StoreBedRequest.php app/Http/Requests/UpdateBedRequest.php app/Http/Requests/StoreAdmissionRequest.php database/factories/WardFactory.php database/factories/RoomFactory.php database/factories/BedFactory.php database/seeders/AishaBakhaitFacilitySeeder.php database/seeders/DatabaseSeeder.php routes/api.php tests/Feature/FloorWardRoomBedTest.php tests/Feature/AdmissionTest.php tests/Feature/AdmissionInvoiceTest.php)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1/jawda-inpatient/public/api/user)",
+      "Bash(curl -s http://127.0.0.1/jawda-inpatient/public/api/login -X POST -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"password\"}')",
+      "Bash(npm run *)",
+      "Read(//tmp/**)",
+      "Bash(sleep 3 && cat /tmp/vite.log)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5182/)",
+      "Bash(chromium-cli --help)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(node -e \"require.resolve\\('playwright'\\)\")",
+      "Bash(npm ls *)",
+      "Bash(vendor/bin/pint --format agent app/Models/Floor.php app/Models/Ward.php app/Models/Room.php app/Http/Controllers/Api/FloorController.php app/Http/Controllers/Api/WardController.php app/Http/Controllers/Api/BedController.php)",
+      "Bash(php -r '$d=json_decode\\(file_get_contents\\(\"php://stdin\"\\),true\\); foreach\\($d as $b\\) echo $b[\"bed_number\"].\" \"; echo \"\\\\n\";')",
+      "Bash(curl -s http://localhost:5182/ -o /dev/null -w \"vite dev server: %{http_code}\\\\n\")",
+      "Bash(vendor/bin/pint --format agent app/Models/Operation.php app/Models/Admission.php app/Services/OperationService.php app/Http/Requests/StoreOperationRequest.php app/Http/Requests/UpdateOperationRequest.php app/Http/Requests/CompleteOperationRequest.php app/Http/Requests/CancelOperationRequest.php app/Http/Requests/StoreRoomRequest.php app/Http/Requests/UpdateRoomRequest.php app/Http/Controllers/Api/OperationController.php app/Http/Controllers/Api/AdmissionController.php app/Http/Controllers/Api/RoomController.php database/factories/OperationFactory.php database/migrations/2026_08_17_170043_add_operation_to_room_type_enum_in_rooms_table.php database/migrations/2026_08_17_170044_create_operations_table.php tests/Feature/OperationTest.php routes/api.php)",
+      "Bash(cat /tmp/vite.log 2>&1)",
+      "Bash(npm root *)",
+      "Bash(node -e \"console.log\\(require.resolve\\('playwright'\\)\\)\")",
+      "Bash(npm init *)",
+      "Bash(node drive.mjs)",
+      "Bash(node drive2.mjs)",
+      "Bash(node verify.mjs)",
+      "Bash(node verify3.mjs)",
+      "Bash(node verify5.mjs)"
+    ]
+  }
+}
