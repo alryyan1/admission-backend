@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\NursingAssignmentController;
 use App\Http\Controllers\Api\OperationController;
 use App\Http\Controllers\Api\PatientController;
+use App\Http\Controllers\Api\ProcedureCategoryController;
+use App\Http\Controllers\Api\ProcedureController;
 use App\Http\Controllers\Api\RequestedServiceController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\StatisticsController;
@@ -48,9 +50,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/patients/import-jawda', [PatientController::class, 'importJawda'])->middleware('role:admin,admission_clerk');
     Route::apiResource('patients', PatientController::class)->only(['index', 'show']);
     Route::apiResource('patients', PatientController::class)->only(['store'])->middleware('role:admin,admission_clerk');
+    Route::patch('/patients/{patient}', [PatientController::class, 'update'])->middleware('role:admin,admission_clerk');
 
     Route::get('/doctors', [DoctorController::class, 'index']);
-    Route::post('/doctors/sync-jawda', [DoctorController::class, 'syncJawda'])->middleware('role:admin');
+
+    Route::apiResource('procedure-categories', ProcedureCategoryController::class)->only(['index']);
+    Route::apiResource('procedure-categories', ProcedureCategoryController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
+
+    Route::apiResource('procedures', ProcedureController::class)->only(['index']);
+    Route::apiResource('procedures', ProcedureController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
 
     Route::apiResource('admissions', AdmissionController::class)->only(['index', 'show']);
     Route::post('/admissions', [AdmissionController::class, 'store'])->middleware('role:admin,admission_clerk');
@@ -79,9 +87,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/operations', [OperationController::class, 'all']);
     Route::get('/operations/{operation}', [OperationController::class, 'show']);
     Route::patch('/operations/{operation}', [OperationController::class, 'update'])->middleware('role:admin,doctor');
+    Route::patch('/operations/{operation}/prepare', [OperationController::class, 'prepare'])->middleware('role:admin,doctor,nurse');
     Route::patch('/operations/{operation}/start', [OperationController::class, 'start'])->middleware('role:admin,doctor');
     Route::patch('/operations/{operation}/complete', [OperationController::class, 'complete'])->middleware('role:admin,doctor');
     Route::patch('/operations/{operation}/cancel', [OperationController::class, 'cancel'])->middleware('role:admin,doctor');
+    Route::post('/operations/{operation}/team-members', [OperationController::class, 'addTeamMember'])->middleware('role:admin,doctor');
+    Route::delete('/operations/{operation}/team-members/{teamMember}', [OperationController::class, 'removeTeamMember'])->middleware('role:admin,doctor');
+    Route::post('/operations/{operation}/supplies', [OperationController::class, 'addSupply'])->middleware('role:admin,doctor,nurse');
+    Route::delete('/operations/{operation}/supplies/{supply}', [OperationController::class, 'removeSupply'])->middleware('role:admin,doctor,nurse');
 
     Route::get('/admissions/{admission}/invoice', [AdmissionInvoiceController::class, 'show']);
 

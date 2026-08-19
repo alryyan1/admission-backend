@@ -69,11 +69,6 @@ class Admission extends Model
         return $this->belongsTo(Bed::class);
     }
 
-    public function admittingDoctor(): BelongsTo
-    {
-        return $this->belongsTo(Doctor::class, 'admitting_doctor_id');
-    }
-
     public function admittedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'admitted_by');

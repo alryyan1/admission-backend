@@ -36,11 +36,37 @@ class OperationService
         return $operation;
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function prepare(Operation $operation, array $data): Operation
+    {
+        if ($operation->status !== 'scheduled') {
+            throw ValidationException::withMessages([
+                'status' => ['لا يمكن تجهيز عملية بعد بدئها.'],
+            ]);
+        }
+
+        $operation->update([
+            ...$data,
+            'prepared_at' => now(),
+            'prepared_by' => auth()->id(),
+        ]);
+
+        return $operation;
+    }
+
     public function start(Operation $operation): Operation
     {
         if ($operation->status !== 'scheduled') {
             throw ValidationException::withMessages([
                 'status' => ['لا يمكن بدء عملية غير مجدولة.'],
+            ]);
+        }
+
+        if (! $operation->isPrepared()) {
+            throw ValidationException::withMessages([
+                'status' => ['يجب إكمال تجهيز المريض قبل بدء العملية.'],
             ]);
         }
 
@@ -67,6 +93,11 @@ class OperationService
             'status' => 'completed',
             'ended_at' => now(),
             'notes' => $data['notes'] ?? $operation->notes,
+            'findings' => $data['findings'] ?? null,
+            'complications' => $data['complications'] ?? null,
+            'blood_loss_ml' => $data['blood_loss_ml'] ?? null,
+            'outcome' => $data['outcome'] ?? null,
+            'report_notes' => $data['report_notes'] ?? null,
         ]);
 
         return $operation;

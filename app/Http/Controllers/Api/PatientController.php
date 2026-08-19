@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportJawdaPatientRequest;
 use App\Http\Requests\StorePatientRequest;
+use App\Http\Requests\UpdatePatientRequest;
 use App\Models\Patient;
 use App\Services\JawdaMedicalClient;
 use Illuminate\Http\JsonResponse;
@@ -38,6 +39,13 @@ class PatientController extends Controller
         $patient = Patient::create([...$request->validated(), 'is_local_only' => true]);
 
         return response()->json($patient, Response::HTTP_CREATED);
+    }
+
+    public function update(UpdatePatientRequest $request, Patient $patient): JsonResponse
+    {
+        $patient->update($request->validated());
+
+        return response()->json($patient);
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreOperationRequest extends FormRequest
 {
@@ -17,9 +18,14 @@ class StoreOperationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'surgeon_id' => ['required', 'exists:doctors,id'],
+            'surgeon_id' => ['required', 'integer'],
             'operation_room_id' => ['nullable', 'exists:rooms,id'],
-            'procedure_name' => ['required', 'string', 'max:255'],
+            'procedure_id' => ['required', 'exists:procedures,id'],
+            'priority' => ['nullable', Rule::in(['emergency', 'urgent', 'scheduled'])],
+            'diagnosis' => ['nullable', 'string', 'max:2000'],
+            'expected_duration_minutes' => ['nullable', 'integer', 'min:1'],
+            'anesthesia_type' => ['nullable', 'string', 'max:255'],
+            'requested_by_doctor_id' => ['nullable', 'integer'],
             'scheduled_at' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];

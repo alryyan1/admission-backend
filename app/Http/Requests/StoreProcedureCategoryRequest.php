@@ -3,9 +3,8 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
-class StoreAdmissionDepositRequest extends FormRequest
+class StoreProcedureCategoryRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -18,9 +17,7 @@ class StoreAdmissionDepositRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'method' => ['sometimes', Rule::in(['cash', 'bank', 'fawry', 'ocash'])],
-            'paid_at' => ['nullable', 'date'],
+            'name' => ['required', 'string', 'max:255', 'unique:procedure_categories,name'],
         ];
     }
 }

@@ -28,7 +28,8 @@
       "Bash(node drive2.mjs)",
       "Bash(node verify.mjs)",
       "Bash(node verify3.mjs)",
-      "Bash(node verify5.mjs)"
+      "Bash(node verify5.mjs)",
+      "Bash(grep -Ei \"node_modules/|^A  dist/|\\\\.env$\")"
     ]
   }
 }

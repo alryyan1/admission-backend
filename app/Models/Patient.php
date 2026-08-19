@@ -20,6 +20,17 @@ class Patient extends Model
         'age_day',
         'address',
         'is_local_only',
+        'emergency_contact_name',
+        'emergency_contact_relationship',
+        'emergency_contact_phone',
+        'emergency_contact_address',
+        'blood_type',
+        'allergies',
+        'chronic_diseases',
+        'current_medications',
+        'past_surgeries',
+        'medical_history',
+        'medical_notes',
     ];
 
     protected $casts = [

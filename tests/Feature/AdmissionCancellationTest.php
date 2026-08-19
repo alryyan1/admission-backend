@@ -7,11 +7,19 @@ use App\Models\Patient;
 use App\Models\Room;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class AdmissionCancellationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Http::fake(['*/all-doctors*' => Http::response(['data' => []], 200)]);
+    }
 
     public function test_admitting_a_patient_generates_an_admission_number_and_type(): void
     {

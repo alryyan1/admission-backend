@@ -3,28 +3,36 @@
 namespace Tests\Feature;
 
 use App\Models\Admission;
-use App\Models\Doctor;
 use App\Models\Operation;
+use App\Models\Procedure;
 use App\Models\Room;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class OperationTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Http::fake(['*/all-doctors*' => Http::response(['data' => []], 200)]);
+    }
+
     public function test_scheduling_an_operation_generates_an_operation_number(): void
     {
         $user = User::factory()->create();
         $admission = Admission::factory()->create();
-        $surgeon = Doctor::factory()->create();
         $room = Room::factory()->create(['room_type' => 'operation']);
+        $procedure = Procedure::factory()->create();
 
         $response = $this->actingAs($user, 'sanctum')->postJson("/api/admissions/{$admission->id}/operations", [
-            'surgeon_id' => $surgeon->id,
+            'surgeon_id' => 501,
             'operation_room_id' => $room->id,
-            'procedure_name' => 'استئصال الزائدة الدودية',
+            'procedure_id' => $procedure->id,
             'scheduled_at' => now()->addDay()->toIso8601String(),
         ]);
 
@@ -37,6 +45,13 @@ class OperationTest extends TestCase
     {
         $user = User::factory()->create();
         $operation = Operation::factory()->create();
+
+        $this->actingAs($user, 'sanctum')->patchJson("/api/operations/{$operation->id}/prepare", [
+            'consent_obtained' => true,
+            'fasting_confirmed' => true,
+            'site_marked' => true,
+            'preop_vitals_checked' => true,
+        ])->assertOk();
 
         $startResponse = $this->actingAs($user, 'sanctum')
             ->patchJson("/api/operations/{$operation->id}/start");
@@ -73,6 +88,17 @@ class OperationTest extends TestCase
         $response->assertOk()->assertJsonPath('status', 'cancelled');
     }
 
+    public function test_cannot_start_an_unprepared_operation(): void
+    {
+        $user = User::factory()->create();
+        $operation = Operation::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->patchJson("/api/operations/{$operation->id}/start");
+
+        $response->assertUnprocessable();
+    }
+
     public function test_cannot_start_a_non_scheduled_operation(): void
     {
         $user = User::factory()->create();
@@ -101,12 +127,12 @@ class OperationTest extends TestCase
         $operation = Operation::factory()->create(['status' => 'in_progress', 'started_at' => now()]);
 
         $response = $this->actingAs($user, 'sanctum')
-            ->patchJson("/api/operations/{$operation->id}", ['procedure_name' => 'إجراء آخر']);
+            ->patchJson("/api/operations/{$operation->id}", ['procedure_id' => Procedure::factory()->create()->id]);
 
         $response->assertUnprocessable();
     }
 
-    public function test_validation_requires_surgeon_procedure_name_and_schedule(): void
+    public function test_validation_requires_surgeon_procedure_and_schedule(): void
     {
         $user = User::factory()->create();
         $admission = Admission::factory()->create();
@@ -114,18 +140,18 @@ class OperationTest extends TestCase
         $response = $this->actingAs($user, 'sanctum')->postJson("/api/admissions/{$admission->id}/operations", []);
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['surgeon_id', 'procedure_name', 'scheduled_at']);
+            ->assertJsonValidationErrors(['surgeon_id', 'procedure_id', 'scheduled_at']);
     }
 
     public function test_nurse_cannot_schedule_an_operation(): void
     {
         $nurse = User::factory()->role('nurse')->create();
         $admission = Admission::factory()->create();
-        $surgeon = Doctor::factory()->create();
+        $procedure = Procedure::factory()->create();
 
         $response = $this->actingAs($nurse, 'sanctum')->postJson("/api/admissions/{$admission->id}/operations", [
-            'surgeon_id' => $surgeon->id,
-            'procedure_name' => 'استئصال الزائدة الدودية',
+            'surgeon_id' => 501,
+            'procedure_id' => $procedure->id,
             'scheduled_at' => now()->addDay()->toIso8601String(),
         ]);
 
@@ -136,11 +162,11 @@ class OperationTest extends TestCase
     {
         $doctor = User::factory()->role('doctor')->create();
         $admission = Admission::factory()->create();
-        $surgeon = Doctor::factory()->create();
+        $procedure = Procedure::factory()->create();
 
         $response = $this->actingAs($doctor, 'sanctum')->postJson("/api/admissions/{$admission->id}/operations", [
-            'surgeon_id' => $surgeon->id,
-            'procedure_name' => 'استئصال الزائدة الدودية',
+            'surgeon_id' => 501,
+            'procedure_id' => $procedure->id,
             'scheduled_at' => now()->addDay()->toIso8601String(),
         ]);
 

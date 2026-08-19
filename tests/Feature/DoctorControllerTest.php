@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Doctor;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -12,11 +11,22 @@ class DoctorControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function fakeJawdaDoctors(): void
+    {
+        Http::fake([
+            '*/all-doctors*' => Http::response([
+                'data' => [
+                    ['id' => 1, 'name' => 'د. أحمد سالم', 'specialist_name' => 'باطنية'],
+                    ['id' => 2, 'name' => 'د. منى خالد', 'specialist_name' => 'أطفال'],
+                ],
+            ], 200),
+        ]);
+    }
+
     public function test_authenticated_user_can_list_all_doctors(): void
     {
         $user = User::factory()->create();
-        Doctor::factory()->create(['name' => 'د. أحمد سالم']);
-        Doctor::factory()->create(['name' => 'د. منى خالد']);
+        $this->fakeJawdaDoctors();
 
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/doctors');
 
@@ -26,39 +36,24 @@ class DoctorControllerTest extends TestCase
     public function test_authenticated_user_can_search_doctors_by_name(): void
     {
         $user = User::factory()->create();
-        Doctor::factory()->create(['name' => 'د. أحمد سالم']);
-        Doctor::factory()->create(['name' => 'د. منى خالد']);
+        $this->fakeJawdaDoctors();
 
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/doctors?search=أحمد');
 
         $response->assertOk()->assertJsonCount(1)->assertJsonPath('0.name', 'د. أحمد سالم');
     }
 
-    public function test_listing_doctors_auto_syncs_from_jawda_when_cache_is_empty(): void
+    public function test_listing_doctors_always_resolves_live_from_jawda(): void
     {
         $user = User::factory()->create();
-        Http::fake([
-            '*/all-doctors*' => Http::response([
-                'data' => [
-                    ['id' => 1, 'name' => 'Out Patient', 'specialist_name' => 'General'],
-                ],
-            ], 200),
-        ]);
+        $this->fakeJawdaDoctors();
 
-        $response = $this->actingAs($user, 'sanctum')->getJson('/api/doctors?search=out patient');
+        $this->actingAs($user, 'sanctum')->getJson('/api/doctors')->assertOk()->assertJsonCount(2);
 
-        $response->assertOk()->assertJsonCount(1)->assertJsonPath('0.name', 'Out Patient');
-        $this->assertDatabaseHas('doctors', ['jawda_doctor_id' => 1, 'name' => 'Out Patient']);
-    }
+        Http::assertSentCount(1);
 
-    public function test_listing_doctors_does_not_resync_when_cache_already_populated(): void
-    {
-        $user = User::factory()->create();
-        Doctor::factory()->create(['name' => 'د. أحمد سالم']);
-        Http::fake();
+        $this->actingAs($user, 'sanctum')->getJson('/api/doctors')->assertOk()->assertJsonCount(2);
 
-        $this->actingAs($user, 'sanctum')->getJson('/api/doctors')->assertOk();
-
-        Http::assertNothingSent();
+        Http::assertSentCount(2);
     }
 }

@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\AdmissionDeposit;
 use App\Models\Bed;
-use App\Models\Doctor;
 use App\Models\Invoice;
 use App\Models\RequestedService;
+use App\Services\DoctorDirectory;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -117,15 +117,28 @@ class StatisticsController extends Controller
         ]);
     }
 
-    public function doctorsAndServices(Request $request): JsonResponse
+    public function doctorsAndServices(Request $request, DoctorDirectory $directory): JsonResponse
     {
         [$from, $to] = $this->resolveRange($request);
 
-        $topDoctors = Doctor::query()
-            ->withCount(['admissions' => fn ($query) => $query->whereBetween('admission_date', [$from, $to])])
+        $topDoctors = Admission::query()
+            ->whereNotNull('admitting_doctor_id')
+            ->whereBetween('admission_date', [$from, $to])
+            ->selectRaw('admitting_doctor_id, COUNT(*) as admissions_count')
+            ->groupBy('admitting_doctor_id')
             ->orderByDesc('admissions_count')
             ->limit(10)
-            ->get(['id', 'name', 'specialist']);
+            ->get()
+            ->map(function ($row) use ($directory) {
+                $doctor = $directory->find((int) $row->admitting_doctor_id);
+
+                return [
+                    'id' => (int) $row->admitting_doctor_id,
+                    'name' => $doctor['name'] ?? null,
+                    'specialist' => $doctor['specialist'] ?? null,
+                    'admissions_count' => (int) $row->admissions_count,
+                ];
+            });
 
         $topServices = RequestedService::query()
             ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))

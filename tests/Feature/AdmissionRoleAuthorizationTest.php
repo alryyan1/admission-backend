@@ -7,11 +7,19 @@ use App\Models\Bed;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class AdmissionRoleAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Http::fake(['*/all-doctors*' => Http::response(['data' => []], 200)]);
+    }
 
     public function test_nurse_cannot_admit_a_patient(): void
     {
