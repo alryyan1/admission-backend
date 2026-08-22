@@ -41,7 +41,14 @@ class OperationController extends Controller
 
     private function loadOperation(Operation $operation, DoctorDirectory $directory): Operation
     {
-        $operation->load(['operationRoom.ward', 'teamMembers', 'supplies', 'procedure.category']);
+        $operation->load([
+            'admission.patient',
+            'admission.bed.room.ward',
+            'operationRoom.ward',
+            'teamMembers',
+            'supplies',
+            'procedure.category',
+        ]);
         $directory->attach($operation, 'surgeon_id', 'surgeon');
         $directory->attach($operation, 'requested_by_doctor_id', 'requested_by_doctor');
         $directory->attach($operation->teamMembers, 'doctor_id', 'doctor');

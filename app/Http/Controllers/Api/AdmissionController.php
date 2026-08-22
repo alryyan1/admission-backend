@@ -9,6 +9,7 @@ use App\Http\Requests\StoreAdmissionRequest;
 use App\Models\Admission;
 use App\Services\AdmissionService;
 use App\Services\DoctorDirectory;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -55,7 +56,7 @@ class AdmissionController extends Controller
 
     public function index(Request $request, DoctorDirectory $directory): JsonResponse
     {
-        $query = Admission::with(['patient', 'bed.room.ward.floor']);
+        $query = Admission::with(['patient', 'bed.room.ward.floor'])->withCount('operations');
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
@@ -63,6 +64,26 @@ class AdmissionController extends Controller
 
         if ($request->filled('patient_id')) {
             $query->where('patient_id', $request->integer('patient_id'));
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->string('search');
+            $query->whereHas('patient', fn ($patientQuery) => $patientQuery->where('name', 'like', "%{$search}%"));
+        }
+
+        if ($request->filled('bed_id')) {
+            $query->where('bed_id', $request->integer('bed_id'));
+        } elseif ($request->filled('room_id')) {
+            $roomId = $request->integer('room_id');
+            $query->whereHas('bed', fn ($bedQuery) => $bedQuery->where('room_id', $roomId));
+        }
+
+        if ($request->filled('from')) {
+            $query->where('admission_date', '>=', Carbon::parse($request->query('from')));
+        }
+
+        if ($request->filled('to')) {
+            $query->where('admission_date', '<=', Carbon::parse($request->query('to')));
         }
 
         $admissions = $query->latest('admission_date')->paginate($request->integer('per_page', 15));

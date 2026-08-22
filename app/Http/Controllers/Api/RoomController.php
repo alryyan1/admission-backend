@@ -14,7 +14,7 @@ class RoomController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Room::with('beds')->withCount('beds');
+        $query = Room::with(['beds', 'ward'])->withCount('beds');
 
         if ($request->filled('ward_id')) {
             $query->where('ward_id', $request->integer('ward_id'));

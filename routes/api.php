@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\ProcedureCategoryController;
 use App\Http\Controllers\Api\ProcedureController;
 use App\Http\Controllers\Api\RequestedServiceController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\SessionController;
 use App\Http\Controllers\Api\StatisticsController;
 use App\Http\Controllers\Api\TreatmentDoseController;
 use App\Http\Controllers\Api\VitalSignController;
@@ -107,4 +108,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/statistics/admissions', [StatisticsController::class, 'admissions']);
     Route::get('/statistics/financials', [StatisticsController::class, 'financials']);
     Route::get('/statistics/doctors-services', [StatisticsController::class, 'doctorsAndServices']);
+    Route::get('/statistics/operations', [StatisticsController::class, 'operations']);
+
+    Route::get('/sessions', [SessionController::class, 'index'])->middleware('role:admin');
+    Route::delete('/sessions/{token}', [SessionController::class, 'destroy'])->middleware('role:admin');
+    Route::delete('/users/{user}/sessions', [SessionController::class, 'destroyForUser'])->middleware('role:admin');
 });

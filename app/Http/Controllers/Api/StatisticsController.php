@@ -7,6 +7,7 @@ use App\Models\Admission;
 use App\Models\AdmissionDeposit;
 use App\Models\Bed;
 use App\Models\Invoice;
+use App\Models\Operation;
 use App\Models\RequestedService;
 use App\Services\DoctorDirectory;
 use Carbon\Carbon;
@@ -152,6 +153,68 @@ class StatisticsController extends Controller
             'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'top_doctors' => $topDoctors,
             'top_services' => $topServices,
+        ]);
+    }
+
+    public function operations(Request $request, DoctorDirectory $directory): JsonResponse
+    {
+        [$from, $to] = $this->resolveRange($request);
+
+        $todayStart = now()->startOfDay();
+        $todayEnd = now()->endOfDay();
+
+        $scheduledToday = Operation::query()
+            ->whereBetween('scheduled_at', [$todayStart, $todayEnd])
+            ->count();
+
+        $completedToday = Operation::query()
+            ->where('status', 'completed')
+            ->whereBetween('ended_at', [$todayStart, $todayEnd])
+            ->count();
+
+        $cancelledToday = Operation::query()
+            ->where('status', 'cancelled')
+            ->whereBetween('cancelled_at', [$todayStart, $todayEnd])
+            ->count();
+
+        $statusCounts = Operation::query()
+            ->whereBetween('scheduled_at', [$from, $to])
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $bySurgeon = Operation::query()
+            ->whereNotNull('surgeon_id')
+            ->whereBetween('scheduled_at', [$from, $to])
+            ->selectRaw('surgeon_id, COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count")
+            ->selectRaw("SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_count")
+            ->groupBy('surgeon_id')
+            ->orderByDesc('total')
+            ->limit(10)
+            ->get()
+            ->map(function ($row) use ($directory) {
+                $doctor = $directory->find((int) $row->surgeon_id);
+
+                return [
+                    'id' => (int) $row->surgeon_id,
+                    'name' => $doctor['name'] ?? null,
+                    'specialist' => $doctor['specialist'] ?? null,
+                    'total' => (int) $row->total,
+                    'completed_count' => (int) $row->completed_count,
+                    'cancelled_count' => (int) $row->cancelled_count,
+                ];
+            });
+
+        return response()->json([
+            'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
+            'today' => [
+                'scheduled' => $scheduledToday,
+                'completed' => $completedToday,
+                'cancelled' => $cancelledToday,
+            ],
+            'status_counts' => $statusCounts,
+            'by_surgeon' => $bySurgeon,
         ]);
     }
 
