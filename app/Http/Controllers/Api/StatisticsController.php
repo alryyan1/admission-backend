@@ -99,9 +99,10 @@ class StatisticsController extends Controller
             ->get();
 
         $depositsByMethod = AdmissionDeposit::query()
+            ->join('payment_methods', 'payment_methods.id', '=', 'admission_deposits.payment_method_id')
             ->whereBetween('paid_at', [$from, $to])
-            ->selectRaw('method, SUM(amount) as total')
-            ->groupBy('method')
+            ->selectRaw('payment_methods.name as method, SUM(amount) as total')
+            ->groupBy('payment_methods.name')
             ->pluck('total', 'method');
 
         return response()->json([
@@ -131,7 +132,7 @@ class StatisticsController extends Controller
             ->limit(10)
             ->get();
 
-        $doctorsById = Doctor::query()->whereIn('id', $topDoctorRows->pluck('admitting_doctor_id'))->get()->keyBy('id');
+        $doctorsById = Doctor::query()->with('specialist')->whereIn('id', $topDoctorRows->pluck('admitting_doctor_id'))->get()->keyBy('id');
 
         $topDoctors = $topDoctorRows->map(function ($row) use ($doctorsById) {
             $doctor = $doctorsById->get((int) $row->admitting_doctor_id);
@@ -139,7 +140,7 @@ class StatisticsController extends Controller
             return [
                 'id' => (int) $row->admitting_doctor_id,
                 'name' => $doctor?->name,
-                'specialist' => $doctor?->specialist,
+                'specialist' => $doctor?->specialist?->name,
                 'admissions_count' => (int) $row->admissions_count,
             ];
         });
@@ -197,7 +198,7 @@ class StatisticsController extends Controller
             ->limit(10)
             ->get();
 
-        $surgeonsById = Doctor::query()->whereIn('id', $bySurgeonRows->pluck('surgeon_id'))->get()->keyBy('id');
+        $surgeonsById = Doctor::query()->with('specialist')->whereIn('id', $bySurgeonRows->pluck('surgeon_id'))->get()->keyBy('id');
 
         $bySurgeon = $bySurgeonRows->map(function ($row) use ($surgeonsById) {
             $doctor = $surgeonsById->get((int) $row->surgeon_id);
@@ -205,7 +206,7 @@ class StatisticsController extends Controller
             return [
                 'id' => (int) $row->surgeon_id,
                 'name' => $doctor?->name,
-                'specialist' => $doctor?->specialist,
+                'specialist' => $doctor?->specialist?->name,
                 'total' => (int) $row->total,
                 'completed_count' => (int) $row->completed_count,
                 'cancelled_count' => (int) $row->cancelled_count,

@@ -31,7 +31,7 @@ class AdmissionController extends Controller
             'admittingDoctor',
             'vitalSigns' => fn ($query) => $query->latest('recorded_at'),
             'doctorOrders.orderedBy',
-            'deposits',
+            'deposits.paymentMethod',
             'requestedServices',
             'invoices',
             'operations.operationRoom',

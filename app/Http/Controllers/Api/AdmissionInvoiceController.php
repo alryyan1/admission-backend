@@ -19,11 +19,6 @@ class AdmissionInvoiceController extends Controller
         return response()->json([
             'admission_id' => $admission->id,
             'patient' => $admission->patient,
-            'billing_mode' => $charges['billing_mode'],
-            'nights_stayed' => $charges['nights_stayed'],
-            'price_per_day' => $charges['price_per_day'],
-            'admission_duration_hours' => $charges['admission_duration_hours'],
-            'bed_charges' => $charges['bed_charges'],
             'requested_services' => $charges['requested_services'],
             'services_total' => $charges['services_total'],
             'total' => $charges['total'],

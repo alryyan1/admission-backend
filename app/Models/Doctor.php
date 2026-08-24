@@ -15,13 +15,18 @@ class Doctor extends Model
     protected $fillable = [
         'jawda_doctor_id',
         'name',
-        'specialist',
+        'specialist_id',
         'role_id',
     ];
 
     public function role(): BelongsTo
     {
         return $this->belongsTo(TeamRole::class);
+    }
+
+    public function specialist(): BelongsTo
+    {
+        return $this->belongsTo(Specialist::class);
     }
 
     public function getActivitylogOptions(): LogOptions

@@ -14,7 +14,7 @@ class RoomController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Room::with(['beds', 'ward'])->withCount('beds');
+        $query = Room::with(['beds', 'ward.floor'])->withCount('beds');
 
         if ($request->filled('ward_id')) {
             $query->where('ward_id', $request->integer('ward_id'));
@@ -36,7 +36,7 @@ class RoomController extends Controller
 
     public function show(Room $room): JsonResponse
     {
-        return response()->json($room->load('ward', 'beds'));
+        return response()->json($room->load('ward.floor', 'beds'));
     }
 
     public function update(UpdateRoomRequest $request, Room $room): JsonResponse

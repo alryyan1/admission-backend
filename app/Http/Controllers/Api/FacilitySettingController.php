@@ -27,6 +27,11 @@ class FacilitySettingController extends Controller
         return $this->streamFile(FacilitySetting::current()->stamp_path);
     }
 
+    public function watermark(): StreamedResponse|Response
+    {
+        return $this->streamFile(FacilitySetting::current()->watermark_path);
+    }
+
     private function streamFile(?string $path): StreamedResponse|Response
     {
         abort_unless($path && Storage::disk('public')->exists($path), 404);
@@ -55,6 +60,11 @@ class FacilitySettingController extends Controller
             $setting->stamp_path = null;
         }
 
+        if ($request->boolean('remove_watermark') && $setting->watermark_path) {
+            Storage::disk('public')->delete($setting->watermark_path);
+            $setting->watermark_path = null;
+        }
+
         if ($request->hasFile('logo')) {
             if ($setting->logo_path) {
                 Storage::disk('public')->delete($setting->logo_path);
@@ -69,12 +79,23 @@ class FacilitySettingController extends Controller
             $setting->stamp_path = $request->file('stamp')->store('facility', 'public');
         }
 
+        if ($request->hasFile('watermark')) {
+            if ($setting->watermark_path) {
+                Storage::disk('public')->delete($setting->watermark_path);
+            }
+            $setting->watermark_path = $request->file('watermark')->store('facility', 'public');
+        }
+
         if ($request->has('use_logo')) {
             $setting->use_logo = $request->boolean('use_logo');
         }
 
         if ($request->has('use_stamp')) {
             $setting->use_stamp = $request->boolean('use_stamp');
+        }
+
+        if ($request->has('use_watermark')) {
+            $setting->use_watermark = $request->boolean('use_watermark');
         }
 
         $setting->save();

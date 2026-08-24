@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\NursingAssignmentController;
 use App\Http\Controllers\Api\OperationController;
 use App\Http\Controllers\Api\PatientController;
+use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\ProcedureCategoryController;
 use App\Http\Controllers\Api\ProcedureController;
 use App\Http\Controllers\Api\RequestedServiceController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\ServiceCategoryController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\SessionController;
+use App\Http\Controllers\Api\SpecialistController;
 use App\Http\Controllers\Api\ShortStayServiceSettingController;
 use App\Http\Controllers\Api\StatisticsController;
 use App\Http\Controllers\Api\TeamRoleController;
@@ -67,6 +69,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('team-roles', TeamRoleController::class)->only(['index']);
     Route::apiResource('team-roles', TeamRoleController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
 
+    Route::apiResource('specialists', SpecialistController::class)->only(['index']);
+    Route::apiResource('specialists', SpecialistController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
+
     Route::apiResource('users', UserController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('role:admin');
 
     Route::apiResource('procedure-categories', ProcedureCategoryController::class)->only(['index']);
@@ -81,6 +86,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('services', ServiceController::class)->only(['index']);
     Route::apiResource('services', ServiceController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
 
+    Route::apiResource('payment-methods', PaymentMethodController::class)->only(['index']);
+    Route::apiResource('payment-methods', PaymentMethodController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
+
     Route::middleware('role:admin')->group(function () {
         Route::get('/settings/chart-opening-service', [ChartOpeningServiceSettingController::class, 'show']);
         Route::put('/settings/chart-opening-service', [ChartOpeningServiceSettingController::class, 'update']);
@@ -92,6 +100,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/settings/facility', [FacilitySettingController::class, 'update']);
         Route::get('/settings/facility/logo', [FacilitySettingController::class, 'logo']);
         Route::get('/settings/facility/stamp', [FacilitySettingController::class, 'stamp']);
+        Route::get('/settings/facility/watermark', [FacilitySettingController::class, 'watermark']);
     });
 
     Route::apiResource('admissions', AdmissionController::class)->only(['index', 'show']);
@@ -114,6 +123,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/admissions/{admission}/services', [RequestedServiceController::class, 'index']);
     Route::post('/admissions/{admission}/services', [RequestedServiceController::class, 'store'])->middleware('role:admin,nurse,doctor');
+    Route::post('/admissions/{admission}/services/accommodation-fee', [RequestedServiceController::class, 'accommodationFee'])->middleware('role:admin,nurse,doctor');
+    Route::patch('/admissions/{admission}/services/{requestedService}', [RequestedServiceController::class, 'update'])->middleware('role:admin,nurse,doctor');
     Route::delete('/admissions/{admission}/services/{requestedService}', [RequestedServiceController::class, 'destroy'])->middleware('role:admin,nurse,doctor');
 
     Route::get('/admissions/{admission}/operations', [OperationController::class, 'index']);

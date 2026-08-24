@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Doctor;
+use App\Models\Specialist;
 use App\Models\TeamRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -37,15 +38,16 @@ class DoctorControllerTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $role = TeamRole::factory()->create();
+        $specialist = Specialist::factory()->create(['name' => 'قلبية']);
 
         $response = $this->actingAs($admin, 'sanctum')->postJson('/api/doctors', [
             'name' => 'د. سارة علي',
-            'specialist' => 'قلبية',
+            'specialist_id' => $specialist->id,
             'role_id' => $role->id,
         ]);
 
         $response->assertCreated()->assertJsonPath('name', 'د. سارة علي');
-        $this->assertDatabaseHas('doctors', ['name' => 'د. سارة علي', 'specialist' => 'قلبية', 'role_id' => $role->id]);
+        $this->assertDatabaseHas('doctors', ['name' => 'د. سارة علي', 'specialist_id' => $specialist->id, 'role_id' => $role->id]);
     }
 
     public function test_creating_a_doctor_requires_a_valid_role(): void

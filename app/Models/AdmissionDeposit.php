@@ -14,7 +14,7 @@ class AdmissionDeposit extends Model
         'admission_id',
         'paid_by',
         'amount',
-        'method',
+        'payment_method_id',
         'paid_at',
     ];
 
@@ -38,5 +38,10 @@ class AdmissionDeposit extends Model
     public function paidBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'paid_by');
+    }
+
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class);
     }
 }

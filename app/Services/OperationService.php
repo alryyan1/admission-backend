@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Models\Admission;
 use App\Models\Operation;
+use App\Models\Procedure;
+use App\Models\Service;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class OperationService
@@ -14,9 +17,36 @@ class OperationService
      */
     public function schedule(Admission $admission, array $data, User $user): Operation
     {
-        return $admission->operations()->create([
-            ...$data,
-            'created_by' => $user->id,
+        return DB::transaction(function () use ($admission, $data, $user) {
+            $operation = $admission->operations()->create([
+                ...$data,
+                'created_by' => $user->id,
+            ]);
+
+            $this->addOperationRequestedService($admission, $operation);
+
+            return $operation;
+        });
+    }
+
+    private function addOperationRequestedService(Admission $admission, Operation $operation): void
+    {
+        $procedure = Procedure::find($operation->procedure_id);
+
+        if (! $procedure) {
+            return;
+        }
+
+        $service = Service::firstOrCreate(
+            ['name_ar' => $procedure->name_ar],
+            ['name_en' => $procedure->name_en, 'price' => 0, 'is_active' => true],
+        );
+
+        $admission->requestedServices()->create([
+            'name' => $service->name_ar,
+            'quantity' => 1,
+            'unit_price' => $service->price,
+            'is_auto_added' => true,
         ]);
     }
 

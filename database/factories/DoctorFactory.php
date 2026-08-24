@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Doctor;
+use App\Models\Specialist;
 use App\Models\TeamRole;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -16,7 +17,7 @@ class DoctorFactory extends Factory
         return [
             'jawda_doctor_id' => null,
             'name' => 'د. '.fake()->name(),
-            'specialist' => fake()->randomElement(['باطنية', 'أطفال', 'جراحة عامة', 'عظام', 'نساء وتوليد', null]),
+            'specialist_id' => fake()->boolean(80) ? Specialist::factory() : null,
             'role_id' => TeamRole::factory(),
         ];
     }

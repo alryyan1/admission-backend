@@ -5,8 +5,6 @@ namespace Tests\Feature;
 use App\Models\Admission;
 use App\Models\Bed;
 use App\Models\Room;
-use App\Models\Service;
-use App\Models\ShortStayServiceSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -15,7 +13,7 @@ class AdmissionInvoiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_invoice_totals_bed_charges_services_and_deposits(): void
+    public function test_invoice_totals_services_and_deposits_only(): void
     {
         $user = User::factory()->create();
         $room = Room::factory()->create(['price_per_day' => 50000]);
@@ -26,51 +24,19 @@ class AdmissionInvoiceTest extends TestCase
         ]);
 
         $admission->requestedServices()->create(['name' => 'أشعة', 'quantity' => 2, 'unit_price' => 10000]);
-        $admission->deposits()->create(['amount' => 30000, 'paid_at' => now()]);
+        $admission->deposits()->create(['amount' => 15000, 'paid_at' => now()]);
 
         $response = $this->actingAs($user, 'sanctum')
             ->getJson("/api/admissions/{$admission->id}/invoice");
 
         $response->assertOk();
-        $response->assertJsonPath('nights_stayed', 2);
-        $response->assertJsonPath('bed_charges', 100000);
         $response->assertJsonPath('services_total', 20000);
-        $response->assertJsonPath('total', 120000);
-        $response->assertJsonPath('deposits_total', 30000);
-        $response->assertJsonPath('balance_due', 90000);
+        $response->assertJsonPath('total', 20000);
+        $response->assertJsonPath('deposits_total', 15000);
+        $response->assertJsonPath('balance_due', 5000);
     }
 
-    public function test_short_stay_admission_is_billed_the_configured_12_hour_price(): void
-    {
-        $user = User::factory()->create();
-        $room = Room::factory()->create(['is_short_stay' => true, 'price_12_hours' => 80000, 'price_24_hours' => 120000]);
-        $bed = Bed::factory()->create(['room_id' => $room->id]);
-        $admission = Admission::factory()->create(['bed_id' => $bed->id, 'admission_duration_hours' => 12]);
-
-        $response = $this->actingAs($user, 'sanctum')
-            ->getJson("/api/admissions/{$admission->id}/invoice");
-
-        $response->assertOk();
-        $response->assertJsonPath('billing_mode', 'short_stay');
-        $response->assertJsonPath('bed_charges', 80000);
-        $response->assertJsonPath('total', 80000);
-    }
-
-    public function test_short_stay_admission_is_billed_the_configured_24_hour_price(): void
-    {
-        $user = User::factory()->create();
-        $room = Room::factory()->create(['is_short_stay' => true, 'price_12_hours' => 80000, 'price_24_hours' => 120000]);
-        $bed = Bed::factory()->create(['room_id' => $room->id]);
-        $admission = Admission::factory()->create(['bed_id' => $bed->id, 'admission_duration_hours' => 24]);
-
-        $response = $this->actingAs($user, 'sanctum')
-            ->getJson("/api/admissions/{$admission->id}/invoice");
-
-        $response->assertOk();
-        $response->assertJsonPath('bed_charges', 120000);
-    }
-
-    public function test_short_stay_admission_invoice_fails_clearly_when_room_pricing_is_not_configured(): void
+    public function test_invoice_ignores_room_and_short_stay_pricing(): void
     {
         $user = User::factory()->create();
         $room = Room::factory()->create(['is_short_stay' => true, 'price_12_hours' => null, 'price_24_hours' => null]);
@@ -80,52 +46,8 @@ class AdmissionInvoiceTest extends TestCase
         $response = $this->actingAs($user, 'sanctum')
             ->getJson("/api/admissions/{$admission->id}/invoice");
 
-        $response->assertUnprocessable();
-    }
-
-    public function test_short_stay_admission_is_not_double_billed_when_duration_service_is_configured(): void
-    {
-        $user = User::factory()->create();
-        $service12h = Service::create(['name_ar' => 'اقامة 12 ساعه', 'price' => 120000]);
-        ShortStayServiceSetting::current()->update(['enabled' => true, 'service_12h_id' => $service12h->id]);
-
-        $room = Room::factory()->create(['is_short_stay' => true, 'price_12_hours' => 120000, 'price_24_hours' => 200000]);
-        $bed = Bed::factory()->create(['room_id' => $room->id]);
-        $admission = Admission::factory()->create(['bed_id' => $bed->id, 'admission_duration_hours' => 12]);
-        // Mirrors what AdmissionService::addShortStayDurationService auto-creates on admit.
-        $admission->requestedServices()->create([
-            'name' => $service12h->name_ar,
-            'quantity' => 1,
-            'unit_price' => $service12h->price,
-            'is_auto_added' => true,
-        ]);
-
-        $response = $this->actingAs($user, 'sanctum')
-            ->getJson("/api/admissions/{$admission->id}/invoice");
-
         $response->assertOk();
-        $response->assertJsonPath('bed_charges', 0);
-        $response->assertJsonPath('services_total', 120000);
-        $response->assertJsonPath('total', 120000);
-    }
-
-    public function test_normal_room_admission_ignores_short_stay_pricing(): void
-    {
-        $user = User::factory()->create();
-        $room = Room::factory()->create([
-            'is_short_stay' => false,
-            'price_per_day' => 50000,
-            'price_12_hours' => 999999,
-            'price_24_hours' => 999999,
-        ]);
-        $bed = Bed::factory()->create(['room_id' => $room->id]);
-        $admission = Admission::factory()->create(['bed_id' => $bed->id, 'admission_date' => now()->subDays(2)]);
-
-        $response = $this->actingAs($user, 'sanctum')
-            ->getJson("/api/admissions/{$admission->id}/invoice");
-
-        $response->assertOk();
-        $response->assertJsonPath('billing_mode', 'daily');
-        $response->assertJsonPath('bed_charges', 100000);
+        $response->assertJsonPath('services_total', 0);
+        $response->assertJsonPath('total', 0);
     }
 }

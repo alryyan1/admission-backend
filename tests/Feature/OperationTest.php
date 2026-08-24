@@ -7,6 +7,7 @@ use App\Models\Doctor;
 use App\Models\Operation;
 use App\Models\Procedure;
 use App\Models\Room;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -31,7 +32,53 @@ class OperationTest extends TestCase
 
         $response->assertCreated();
         $response->assertJsonPath('status', 'scheduled');
-        $this->assertMatchesRegularExpression('/^OP-\d{2}-\d{6}$/', $response->json('operation_number'));
+        $this->assertMatchesRegularExpression('/^\d+$/', $response->json('operation_number'));
+    }
+
+    public function test_scheduling_an_operation_creates_a_requested_service_from_an_existing_matching_service(): void
+    {
+        $user = User::factory()->create();
+        $admission = Admission::factory()->create();
+        $room = Room::factory()->create(['room_type' => 'operation']);
+        $procedure = Procedure::factory()->create(['name_ar' => 'استئصال الزائدة الدودية']);
+        $service = Service::factory()->create(['name_ar' => 'استئصال الزائدة الدودية', 'price' => 75000]);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson("/api/admissions/{$admission->id}/operations", [
+            'surgeon_id' => Doctor::factory()->create()->id,
+            'operation_room_id' => $room->id,
+            'procedure_id' => $procedure->id,
+            'scheduled_at' => now()->addDay()->toIso8601String(),
+        ]);
+
+        $response->assertCreated();
+        $this->assertDatabaseCount('services', 1);
+        $this->assertDatabaseHas('requested_services', [
+            'admission_id' => $admission->id,
+            'name' => 'استئصال الزائدة الدودية',
+            'unit_price' => $service->price,
+            'is_auto_added' => true,
+        ]);
+    }
+
+    public function test_scheduling_an_operation_creates_the_service_when_none_matches_the_procedure(): void
+    {
+        $user = User::factory()->create();
+        $admission = Admission::factory()->create();
+        $procedure = Procedure::factory()->create(['name_ar' => 'استئصال المرارة بالمنظار']);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson("/api/admissions/{$admission->id}/operations", [
+            'surgeon_id' => Doctor::factory()->create()->id,
+            'procedure_id' => $procedure->id,
+            'scheduled_at' => now()->addDay()->toIso8601String(),
+        ]);
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('services', ['name_ar' => 'استئصال المرارة بالمنظار']);
+        $this->assertDatabaseHas('requested_services', [
+            'admission_id' => $admission->id,
+            'name' => 'استئصال المرارة بالمنظار',
+            'is_auto_added' => true,
+        ]);
     }
 
     public function test_full_lifecycle_from_scheduled_to_started_to_completed(): void

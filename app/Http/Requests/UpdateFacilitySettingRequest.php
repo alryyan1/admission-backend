@@ -23,10 +23,13 @@ class UpdateFacilitySettingRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:500'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'stamp' => ['nullable', 'image', 'max:2048'],
+            'watermark' => ['nullable', 'image', 'max:2048'],
             'remove_logo' => ['nullable', 'boolean'],
             'remove_stamp' => ['nullable', 'boolean'],
+            'remove_watermark' => ['nullable', 'boolean'],
             'use_logo' => ['nullable', 'boolean'],
             'use_stamp' => ['nullable', 'boolean'],
+            'use_watermark' => ['nullable', 'boolean'],
         ];
     }
 }

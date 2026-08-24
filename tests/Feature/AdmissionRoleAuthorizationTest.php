@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Admission;
 use App\Models\Bed;
 use App\Models\Patient;
+use App\Models\PaymentMethod;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -74,7 +75,7 @@ class AdmissionRoleAuthorizationTest extends TestCase
 
         $response = $this->actingAs($nurse, 'sanctum')->postJson("/api/admissions/{$admission->id}/deposits", [
             'amount' => 50000,
-            'method' => 'cash',
+            'payment_method_id' => PaymentMethod::factory()->create()->id,
         ]);
 
         $response->assertForbidden();
@@ -87,7 +88,7 @@ class AdmissionRoleAuthorizationTest extends TestCase
 
         $response = $this->actingAs($cashier, 'sanctum')->postJson("/api/admissions/{$admission->id}/deposits", [
             'amount' => 50000,
-            'method' => 'cash',
+            'payment_method_id' => PaymentMethod::factory()->create()->id,
         ]);
 
         $response->assertCreated();

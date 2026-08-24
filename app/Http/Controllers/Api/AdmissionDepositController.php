@@ -12,7 +12,7 @@ class AdmissionDepositController extends Controller
 {
     public function index(Admission $admission): JsonResponse
     {
-        return response()->json($admission->deposits()->with('paidBy')->latest('paid_at')->get());
+        return response()->json($admission->deposits()->with(['paidBy', 'paymentMethod'])->latest('paid_at')->get());
     }
 
     public function store(StoreAdmissionDepositRequest $request, Admission $admission): JsonResponse
@@ -24,6 +24,6 @@ class AdmissionDepositController extends Controller
             'paid_by' => $request->user()->id,
         ]);
 
-        return response()->json($deposit, Response::HTTP_CREATED);
+        return response()->json($deposit->load('paymentMethod'), Response::HTTP_CREATED);
     }
 }

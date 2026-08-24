@@ -68,7 +68,7 @@ class Operation extends Model
 
         static::created(function (Operation $operation) {
             $operation->forceFill([
-                'operation_number' => sprintf('OP-%s-%06d', now()->format('y'), $operation->id),
+                'operation_number' => (string) $operation->id,
             ])->saveQuietly();
         });
     }

@@ -8,6 +8,7 @@ use App\Models\Bed;
 use App\Models\Doctor;
 use App\Models\Invoice;
 use App\Models\RequestedService;
+use App\Models\Specialist;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -52,7 +53,7 @@ class StatisticsControllerTest extends TestCase
         $admission = Admission::factory()->create();
         Invoice::factory()->for($admission)->create(['status' => 'paid', 'total' => 15000, 'paid_at' => now()]);
         Invoice::factory()->for($admission)->create(['status' => 'issued', 'total' => 5000]);
-        AdmissionDeposit::factory()->for($admission)->create(['amount' => 3000, 'method' => 'cash', 'paid_at' => now()]);
+        AdmissionDeposit::factory()->for($admission)->create(['amount' => 3000, 'paid_at' => now()]);
         RequestedService::factory()->for($admission)->create(['quantity' => 2, 'unit_price' => 1000]);
 
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/statistics/financials');
@@ -67,7 +68,7 @@ class StatisticsControllerTest extends TestCase
     public function test_doctors_and_services_statistics_rank_top_entries(): void
     {
         $user = User::factory()->create();
-        $doctor = Doctor::factory()->create(['name' => 'د. أحمد سالم', 'specialist' => 'باطنية']);
+        $doctor = Doctor::factory()->create(['name' => 'د. أحمد سالم', 'specialist_id' => Specialist::factory()->create(['name' => 'باطنية'])->id]);
         $admission = Admission::factory()->create(['admitting_doctor_id' => $doctor->id, 'admission_date' => now()]);
         RequestedService::factory()->for($admission)->create(['name' => 'أشعة', 'quantity' => 2, 'unit_price' => 5000]);
 

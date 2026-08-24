@@ -30,14 +30,14 @@ class InvoiceTest extends TestCase
             ->postJson("/api/admissions/{$admission->id}/invoices");
 
         $response->assertCreated();
-        $response->assertJsonPath('total', '120000.00');
+        $response->assertJsonPath('total', '20000.00');
         $response->assertJsonPath('status', 'issued');
-        $response->assertJsonCount(2, 'items');
+        $response->assertJsonCount(1, 'items');
         $this->assertMatchesRegularExpression('/^INV-\d{2}-\d{6}$/', $response->json('invoice_number'));
 
         $this->assertDatabaseHas('invoices', [
             'admission_id' => $admission->id,
-            'total' => 120000,
+            'total' => 20000,
             'created_by' => $cashier->id,
         ]);
         $this->assertDatabaseHas('invoice_items', [

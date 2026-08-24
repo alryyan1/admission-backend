@@ -50,7 +50,7 @@ class Admission extends Model
         static::created(function (Admission $admission) {
             $admission->bed()->update(['status' => 'occupied']);
             $admission->forceFill([
-                'admission_number' => sprintf('ADM-%s-%06d', now()->format('y'), $admission->id),
+                'admission_number' => (string) $admission->id,
             ])->saveQuietly();
         });
 

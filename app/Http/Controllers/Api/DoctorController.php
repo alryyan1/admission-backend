@@ -16,7 +16,7 @@ class DoctorController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Doctor::with('role');
+        $query = Doctor::with(['role', 'specialist']);
 
         if ($request->filled('role_id')) {
             $query->where('role_id', $request->integer('role_id'));
@@ -26,7 +26,7 @@ class DoctorController extends Controller
             $search = $request->string('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('specialist', 'like', "%{$search}%");
+                    ->orWhereHas('specialist', fn ($sq) => $sq->where('name', 'like', "%{$search}%"));
             });
         }
 
@@ -36,7 +36,7 @@ class DoctorController extends Controller
     public function store(StoreDoctorRequest $request): JsonResponse
     {
         $doctor = Doctor::create($request->validated());
-        $doctor->load('role');
+        $doctor->load(['role', 'specialist']);
 
         return response()->json($doctor, Response::HTTP_CREATED);
     }
@@ -44,7 +44,7 @@ class DoctorController extends Controller
     public function update(UpdateDoctorRequest $request, Doctor $doctor): JsonResponse
     {
         $doctor->update($request->validated());
-        $doctor->load('role');
+        $doctor->load(['role', 'specialist']);
 
         return response()->json($doctor);
     }

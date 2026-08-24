@@ -26,7 +26,7 @@ class AdmissionCancellationTest extends TestCase
 
         $response->assertCreated();
         $response->assertJsonPath('admission_type', 'inpatient');
-        $this->assertMatchesRegularExpression('/^ADM-\d{2}-\d{6}$/', $response->json('admission_number'));
+        $this->assertMatchesRegularExpression('/^\d+$/', $response->json('admission_number'));
     }
 
     public function test_admitting_to_a_short_stay_bed_sets_short_stay_admission_type(): void

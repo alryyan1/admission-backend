@@ -18,18 +18,22 @@ class FacilitySetting extends Model
         'address',
         'logo_path',
         'stamp_path',
+        'watermark_path',
         'use_logo',
         'use_stamp',
+        'use_watermark',
     ];
 
     protected $casts = [
         'use_logo' => 'boolean',
         'use_stamp' => 'boolean',
+        'use_watermark' => 'boolean',
     ];
 
     protected $appends = [
         'logo_url',
         'stamp_url',
+        'watermark_url',
     ];
 
     public static function current(): self
@@ -45,6 +49,11 @@ class FacilitySetting extends Model
     public function getStampUrlAttribute(): ?string
     {
         return $this->stamp_path ? Storage::disk('public')->url($this->stamp_path) : null;
+    }
+
+    public function getWatermarkUrlAttribute(): ?string
+    {
+        return $this->watermark_path ? Storage::disk('public')->url($this->watermark_path) : null;
     }
 
     public function getActivitylogOptions(): LogOptions
