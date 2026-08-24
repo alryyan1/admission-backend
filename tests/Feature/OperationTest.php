@@ -3,24 +3,17 @@
 namespace Tests\Feature;
 
 use App\Models\Admission;
+use App\Models\Doctor;
 use App\Models\Operation;
 use App\Models\Procedure;
 use App\Models\Room;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class OperationTest extends TestCase
 {
     use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Http::fake(['*/all-doctors*' => Http::response(['data' => []], 200)]);
-    }
 
     public function test_scheduling_an_operation_generates_an_operation_number(): void
     {
@@ -30,7 +23,7 @@ class OperationTest extends TestCase
         $procedure = Procedure::factory()->create();
 
         $response = $this->actingAs($user, 'sanctum')->postJson("/api/admissions/{$admission->id}/operations", [
-            'surgeon_id' => 501,
+            'surgeon_id' => Doctor::factory()->create()->id,
             'operation_room_id' => $room->id,
             'procedure_id' => $procedure->id,
             'scheduled_at' => now()->addDay()->toIso8601String(),
@@ -150,7 +143,7 @@ class OperationTest extends TestCase
         $procedure = Procedure::factory()->create();
 
         $response = $this->actingAs($nurse, 'sanctum')->postJson("/api/admissions/{$admission->id}/operations", [
-            'surgeon_id' => 501,
+            'surgeon_id' => Doctor::factory()->create()->id,
             'procedure_id' => $procedure->id,
             'scheduled_at' => now()->addDay()->toIso8601String(),
         ]);
@@ -165,7 +158,7 @@ class OperationTest extends TestCase
         $procedure = Procedure::factory()->create();
 
         $response = $this->actingAs($doctor, 'sanctum')->postJson("/api/admissions/{$admission->id}/operations", [
-            'surgeon_id' => 501,
+            'surgeon_id' => Doctor::factory()->create()->id,
             'procedure_id' => $procedure->id,
             'scheduled_at' => now()->addDay()->toIso8601String(),
         ]);

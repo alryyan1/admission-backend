@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Models\Admission;
 use App\Models\Bed;
+use App\Models\ChartOpeningServiceSetting;
+use App\Models\Service;
+use App\Models\ShortStayServiceSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,12 +27,67 @@ class AdmissionService
                 ]);
             }
 
-            return Admission::create([
+            $admission = Admission::create([
                 ...$data,
                 'admitted_by' => $user->id,
                 'admission_type' => $bed->room->is_short_stay ? 'short_stay' : 'inpatient',
             ]);
+
+            $this->addChartOpeningService($admission, $bed->room->is_short_stay);
+            $this->addShortStayDurationService($admission, $bed->room->is_short_stay);
+
+            return $admission;
         });
+    }
+
+    private function addChartOpeningService(Admission $admission, bool $isShortStay): void
+    {
+        $setting = ChartOpeningServiceSetting::current()->load('service');
+
+        if (! $setting->auto_add || ! $setting->service) {
+            return;
+        }
+
+        if ($isShortStay && ! $setting->apply_to_short_stay) {
+            return;
+        }
+
+        $this->createAutoRequestedService($admission, $setting->service);
+    }
+
+    private function addShortStayDurationService(Admission $admission, bool $isShortStay): void
+    {
+        if (! $isShortStay) {
+            return;
+        }
+
+        $setting = ShortStayServiceSetting::current()->load(['service12h', 'service24h']);
+
+        if (! $setting->enabled) {
+            return;
+        }
+
+        $service = match ($admission->admission_duration_hours) {
+            12 => $setting->service12h,
+            24 => $setting->service24h,
+            default => null,
+        };
+
+        if (! $service) {
+            return;
+        }
+
+        $this->createAutoRequestedService($admission, $service);
+    }
+
+    private function createAutoRequestedService(Admission $admission, Service $service): void
+    {
+        $admission->requestedServices()->create([
+            'name' => $service->name_ar,
+            'quantity' => 1,
+            'unit_price' => $service->price,
+            'is_auto_added' => true,
+        ]);
     }
 
     /**

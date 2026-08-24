@@ -14,7 +14,6 @@ use App\Models\Admission;
 use App\Models\Operation;
 use App\Models\OperationSupply;
 use App\Models\OperationTeamMember;
-use App\Services\DoctorDirectory;
 use App\Services\OperationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,45 +32,43 @@ class OperationController extends Controller
             'admission.patient',
             'admission.bed.room.ward',
             'operationRoom.ward',
-            'teamMembers',
+            'teamMembers.doctor',
+            'teamMembers.role',
             'supplies',
             'procedure.category',
+            'surgeon',
+            'requestedByDoctor',
         ];
     }
 
-    private function loadOperation(Operation $operation, DoctorDirectory $directory): Operation
+    private function loadOperation(Operation $operation): Operation
     {
         $operation->load([
             'admission.patient',
             'admission.bed.room.ward',
             'operationRoom.ward',
-            'teamMembers',
+            'teamMembers.doctor',
+            'teamMembers.role',
             'supplies',
             'procedure.category',
+            'surgeon',
+            'requestedByDoctor',
         ]);
-        $directory->attach($operation, 'surgeon_id', 'surgeon');
-        $directory->attach($operation, 'requested_by_doctor_id', 'requested_by_doctor');
-        $directory->attach($operation->teamMembers, 'doctor_id', 'doctor');
 
         return $operation;
     }
 
-    public function index(Admission $admission, DoctorDirectory $directory): JsonResponse
+    public function index(Admission $admission): JsonResponse
     {
         $operations = $admission->operations()
-            ->with(['operationRoom.ward', 'teamMembers', 'supplies', 'procedure.category'])
+            ->with(['operationRoom.ward', 'teamMembers.doctor', 'teamMembers.role', 'supplies', 'procedure.category', 'surgeon', 'requestedByDoctor'])
             ->latest('scheduled_at')
             ->get();
-        $directory->attach($operations, 'surgeon_id', 'surgeon');
-        $directory->attach($operations, 'requested_by_doctor_id', 'requested_by_doctor');
-        foreach ($operations as $operation) {
-            $directory->attach($operation->teamMembers, 'doctor_id', 'doctor');
-        }
 
         return response()->json($operations);
     }
 
-    public function all(Request $request, DoctorDirectory $directory): JsonResponse
+    public function all(Request $request): JsonResponse
     {
         $query = Operation::with($this->listRelations());
 
@@ -96,76 +93,71 @@ class OperationController extends Controller
         }
 
         $operations = $query->latest('scheduled_at')->paginate($request->integer('per_page', 15));
-        $directory->attach($operations, 'surgeon_id', 'surgeon');
-        $directory->attach($operations, 'requested_by_doctor_id', 'requested_by_doctor');
-        foreach ($operations as $operation) {
-            $directory->attach($operation->teamMembers, 'doctor_id', 'doctor');
-        }
 
         return response()->json($operations);
     }
 
-    public function show(Operation $operation, DoctorDirectory $directory): JsonResponse
+    public function show(Operation $operation): JsonResponse
     {
-        $this->loadOperation($operation, $directory);
+        $this->loadOperation($operation);
 
         return response()->json($operation);
     }
 
-    public function store(StoreOperationRequest $request, Admission $admission, DoctorDirectory $directory): JsonResponse
+    public function store(StoreOperationRequest $request, Admission $admission): JsonResponse
     {
         $admission->assertMutable($request->user());
 
         $operation = $this->operationService->schedule($admission, $request->validated(), $request->user());
-        $this->loadOperation($operation, $directory);
+        $this->loadOperation($operation);
 
         return response()->json($operation, Response::HTTP_CREATED);
     }
 
-    public function update(UpdateOperationRequest $request, Operation $operation, DoctorDirectory $directory): JsonResponse
+    public function update(UpdateOperationRequest $request, Operation $operation): JsonResponse
     {
         $operation = $this->operationService->update($operation, $request->validated());
-        $this->loadOperation($operation, $directory);
+        $this->loadOperation($operation);
 
         return response()->json($operation);
     }
 
-    public function prepare(PrepareOperationRequest $request, Operation $operation, DoctorDirectory $directory): JsonResponse
+    public function prepare(PrepareOperationRequest $request, Operation $operation): JsonResponse
     {
         $operation = $this->operationService->prepare($operation, $request->validated());
-        $this->loadOperation($operation, $directory);
+        $this->loadOperation($operation);
 
         return response()->json($operation);
     }
 
-    public function start(Operation $operation, DoctorDirectory $directory): JsonResponse
+    public function start(Operation $operation): JsonResponse
     {
         $operation = $this->operationService->start($operation);
-        $this->loadOperation($operation, $directory);
+        $this->loadOperation($operation);
 
         return response()->json($operation);
     }
 
-    public function complete(CompleteOperationRequest $request, Operation $operation, DoctorDirectory $directory): JsonResponse
+    public function complete(CompleteOperationRequest $request, Operation $operation): JsonResponse
     {
         $operation = $this->operationService->complete($operation, $request->validated());
-        $this->loadOperation($operation, $directory);
+        $this->loadOperation($operation);
 
         return response()->json($operation);
     }
 
-    public function cancel(CancelOperationRequest $request, Operation $operation, DoctorDirectory $directory): JsonResponse
+    public function cancel(CancelOperationRequest $request, Operation $operation): JsonResponse
     {
         $operation = $this->operationService->cancel($operation, $request->validated());
-        $this->loadOperation($operation, $directory);
+        $this->loadOperation($operation);
 
         return response()->json($operation);
     }
 
-    public function addTeamMember(StoreOperationTeamMemberRequest $request, Operation $operation, DoctorDirectory $directory): JsonResponse
+    public function addTeamMember(StoreOperationTeamMemberRequest $request, Operation $operation): JsonResponse
     {
         $member = $operation->teamMembers()->create($request->validated());
-        $directory->attach($member, 'doctor_id', 'doctor');
+        $member->load(['doctor', 'role']);
 
         return response()->json($member, Response::HTTP_CREATED);
     }

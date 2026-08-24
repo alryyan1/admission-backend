@@ -29,23 +29,4 @@ class JawdaMedicalClientTest extends TestCase
         });
         Http::assertNotSent(fn ($request) => str_contains($request->url(), '/login'));
     }
-
-    public function test_all_doctors_calls_the_public_endpoint_without_authentication(): void
-    {
-        Http::fake([
-            '*/all-doctors*' => Http::response([
-                'data' => [
-                    ['id' => 1, 'name' => 'Dr. Sara', 'specialist_name' => 'Cardiology'],
-                ],
-            ], 200),
-        ]);
-
-        $client = new JawdaMedicalClient('http://jawda-medical.test/api');
-        $results = $client->allDoctors();
-
-        $this->assertSame([['id' => 1, 'name' => 'Dr. Sara', 'specialist_name' => 'Cardiology']], $results);
-
-        Http::assertSent(fn ($request) => ! $request->hasHeader('Authorization'));
-        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/login'));
-    }
 }

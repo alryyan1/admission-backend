@@ -76,7 +76,7 @@ class ProcedureCatalogSeeder extends Seeder
             ['ar' => 'استئصال المثانة', 'en' => 'Cystectomy'],
             ['ar' => 'ختان', 'en' => 'Circumcision'],
             ['ar' => 'إصلاح دوالي الخصية', 'en' => 'Varicocelectomy'],
-            ['ar' => 'تركيب قسطرة بولية دائمة (JJ Stent)', 'en' => 'Ureteral Stent Placement' ],
+            ['ar' => 'تركيب قسطرة بولية دائمة (JJ Stent)', 'en' => 'Ureteral Stent Placement'],
         ],
         'قلب وصدر' => [
             ['ar' => 'قسطرة قلبية', 'en' => 'Cardiac Catheterization'],

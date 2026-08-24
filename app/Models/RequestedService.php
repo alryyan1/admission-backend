@@ -17,10 +17,12 @@ class RequestedService extends Model
         'name',
         'quantity',
         'unit_price',
+        'is_auto_added',
     ];
 
     protected $casts = [
         'unit_price' => 'decimal:2',
+        'is_auto_added' => 'boolean',
     ];
 
     protected $appends = ['total_price'];

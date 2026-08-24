@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreOperationTeamMemberRequest extends FormRequest
 {
@@ -18,12 +17,9 @@ class StoreOperationTeamMemberRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'doctor_id' => ['nullable', 'integer'],
+            'doctor_id' => ['nullable', 'integer', 'exists:doctors,id'],
             'name' => ['nullable', 'string', 'max:255', 'required_without:doctor_id'],
-            'role' => [
-                'required',
-                Rule::in(['surgeon', 'assistant_surgeon', 'anesthesiologist', 'scrub_nurse', 'circulating_nurse', 'technician', 'other']),
-            ],
+            'role_id' => ['required', 'integer', 'exists:team_roles,id'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }

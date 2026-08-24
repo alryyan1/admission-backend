@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Admission;
 use App\Models\Bed;
 use App\Models\Room;
+use App\Models\Service;
+use App\Models\ShortStayServiceSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -79,6 +81,32 @@ class AdmissionInvoiceTest extends TestCase
             ->getJson("/api/admissions/{$admission->id}/invoice");
 
         $response->assertUnprocessable();
+    }
+
+    public function test_short_stay_admission_is_not_double_billed_when_duration_service_is_configured(): void
+    {
+        $user = User::factory()->create();
+        $service12h = Service::create(['name_ar' => 'اقامة 12 ساعه', 'price' => 120000]);
+        ShortStayServiceSetting::current()->update(['enabled' => true, 'service_12h_id' => $service12h->id]);
+
+        $room = Room::factory()->create(['is_short_stay' => true, 'price_12_hours' => 120000, 'price_24_hours' => 200000]);
+        $bed = Bed::factory()->create(['room_id' => $room->id]);
+        $admission = Admission::factory()->create(['bed_id' => $bed->id, 'admission_duration_hours' => 12]);
+        // Mirrors what AdmissionService::addShortStayDurationService auto-creates on admit.
+        $admission->requestedServices()->create([
+            'name' => $service12h->name_ar,
+            'quantity' => 1,
+            'unit_price' => $service12h->price,
+            'is_auto_added' => true,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/admissions/{$admission->id}/invoice");
+
+        $response->assertOk();
+        $response->assertJsonPath('bed_charges', 0);
+        $response->assertJsonPath('services_total', 120000);
+        $response->assertJsonPath('total', 120000);
     }
 
     public function test_normal_room_admission_ignores_short_stay_pricing(): void

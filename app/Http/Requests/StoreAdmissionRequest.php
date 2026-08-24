@@ -25,7 +25,7 @@ class StoreAdmissionRequest extends FormRequest
                 'required',
                 Rule::exists('beds', 'id')->where('status', 'available'),
             ],
-            'admitting_doctor_id' => ['nullable', 'integer'],
+            'admitting_doctor_id' => ['nullable', 'integer', 'exists:doctors,id'],
             'admission_date' => ['nullable', 'date'],
             'admission_duration_hours' => ['nullable', 'integer', Rule::in([12, 24])],
             'diagnosis' => ['nullable', 'string', 'max:255'],

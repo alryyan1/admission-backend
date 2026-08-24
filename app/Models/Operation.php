@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Operation extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'admission_id',
@@ -76,6 +78,16 @@ class Operation extends Model
         return $this->belongsTo(Admission::class);
     }
 
+    public function surgeon(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class, 'surgeon_id');
+    }
+
+    public function requestedByDoctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class, 'requested_by_doctor_id');
+    }
+
     public function operationRoom(): BelongsTo
     {
         return $this->belongsTo(Room::class, 'operation_room_id');
@@ -107,5 +119,10 @@ class Operation extends Model
             && $this->fasting_confirmed
             && $this->site_marked
             && $this->preop_vitals_checked;
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()->logFillable()->logOnlyDirty()->dontSubmitEmptyLogs();
     }
 }

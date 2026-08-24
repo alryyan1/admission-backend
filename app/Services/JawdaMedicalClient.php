@@ -32,16 +32,4 @@ class JawdaMedicalClient
 
         return $response->json('data', []);
     }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    public function allDoctors(): array
-    {
-        $response = Http::acceptJson()
-            ->get("{$this->baseUrl}/all-doctors")
-            ->throw();
-
-        return $response->json('data', []);
-    }
 }

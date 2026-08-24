@@ -12,6 +12,7 @@
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
         "phpoffice/phpspreadsheet": "^5.9",
+        "spatie/laravel-activitylog": "^4.12",
         "spatie/laravel-backup": "^9.3",
         "spatie/laravel-permission": "^6.25",
         "tecnickcom/tcpdf": "^7.0"

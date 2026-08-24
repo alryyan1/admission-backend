@@ -5,11 +5,11 @@ namespace Tests\Feature;
 use App\Models\Admission;
 use App\Models\AdmissionDeposit;
 use App\Models\Bed;
+use App\Models\Doctor;
 use App\Models\Invoice;
 use App\Models\RequestedService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class StatisticsControllerTest extends TestCase
@@ -67,20 +67,14 @@ class StatisticsControllerTest extends TestCase
     public function test_doctors_and_services_statistics_rank_top_entries(): void
     {
         $user = User::factory()->create();
-        Http::fake([
-            '*/all-doctors*' => Http::response([
-                'data' => [
-                    ['id' => 501, 'name' => 'د. أحمد سالم', 'specialist_name' => 'باطنية'],
-                ],
-            ], 200),
-        ]);
-        $admission = Admission::factory()->create(['admitting_doctor_id' => 501, 'admission_date' => now()]);
+        $doctor = Doctor::factory()->create(['name' => 'د. أحمد سالم', 'specialist' => 'باطنية']);
+        $admission = Admission::factory()->create(['admitting_doctor_id' => $doctor->id, 'admission_date' => now()]);
         RequestedService::factory()->for($admission)->create(['name' => 'أشعة', 'quantity' => 2, 'unit_price' => 5000]);
 
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/statistics/doctors-services');
 
         $response->assertOk();
-        $response->assertJsonFragment(['id' => 501, 'name' => 'د. أحمد سالم', 'admissions_count' => 1]);
+        $response->assertJsonFragment(['id' => $doctor->id, 'name' => 'د. أحمد سالم', 'admissions_count' => 1]);
         $response->assertJsonFragment(['name' => 'أشعة', 'total_quantity' => 2]);
     }
 }

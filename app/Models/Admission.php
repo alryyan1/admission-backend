@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Validation\ValidationException;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Admission extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'patient_id',
@@ -69,6 +71,11 @@ class Admission extends Model
         return $this->belongsTo(Bed::class);
     }
 
+    public function admittingDoctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class, 'admitting_doctor_id');
+    }
+
     public function admittedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'admitted_by');
@@ -114,12 +121,21 @@ class Admission extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    /**
+     * Billable nights for room charges: any partial 24-hour block counts as a full
+     * night (ceil), with a 1-night minimum even for a same-day discharge.
+     */
     public function nightsStayed(): int
     {
         $end = $this->discharge_date ?? now();
         $hours = $this->admission_date->diffInHours($end);
 
         return max(1, (int) ceil($hours / 24));
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()->logFillable()->logOnlyDirty()->dontSubmitEmptyLogs();
     }
 
     public function assertMutable(User $user): void

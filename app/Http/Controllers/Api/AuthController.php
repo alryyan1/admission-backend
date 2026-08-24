@@ -37,6 +37,8 @@ class AuthController extends Controller
 
         $token = $user->createToken($deviceName, ['*'], now()->addMinutes(config('sanctum.token_ttl')))->plainTextToken;
 
+        activity()->causedBy($user)->log('تسجيل الدخول');
+
         return response()->json([
             'user' => $user,
             'token' => $token,
@@ -45,6 +47,8 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
+        activity()->causedBy($request->user())->log('تسجيل الخروج');
+
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'تم تسجيل الخروج بنجاح']);

@@ -8,7 +8,6 @@ use App\Http\Requests\DischargeAdmissionRequest;
 use App\Http\Requests\StoreAdmissionRequest;
 use App\Models\Admission;
 use App\Services\AdmissionService;
-use App\Services\DoctorDirectory;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,34 +28,25 @@ class AdmissionController extends Controller
             'admittedBy',
             'dischargedBy',
             'cancelledBy',
+            'admittingDoctor',
             'vitalSigns' => fn ($query) => $query->latest('recorded_at'),
             'doctorOrders.orderedBy',
             'deposits',
             'requestedServices',
             'invoices',
             'operations.operationRoom',
-            'operations.teamMembers',
+            'operations.teamMembers.doctor',
+            'operations.teamMembers.role',
             'operations.supplies',
             'operations.procedure.category',
+            'operations.surgeon',
+            'operations.requestedByDoctor',
         ];
     }
 
-    private function attachDoctors(Admission $admission, DoctorDirectory $directory): Admission
+    public function index(Request $request): JsonResponse
     {
-        $directory->attach($admission, 'admitting_doctor_id', 'admitting_doctor');
-        $directory->attach($admission->operations, 'surgeon_id', 'surgeon');
-        $directory->attach($admission->operations, 'requested_by_doctor_id', 'requested_by_doctor');
-
-        foreach ($admission->operations as $operation) {
-            $directory->attach($operation->teamMembers, 'doctor_id', 'doctor');
-        }
-
-        return $admission;
-    }
-
-    public function index(Request $request, DoctorDirectory $directory): JsonResponse
-    {
-        $query = Admission::with(['patient', 'bed.room.ward.floor'])->withCount('operations');
+        $query = Admission::with(['patient', 'bed.room.ward.floor', 'admittingDoctor'])->withCount('operations');
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
@@ -87,34 +77,33 @@ class AdmissionController extends Controller
         }
 
         $admissions = $query->latest('admission_date')->paginate($request->integer('per_page', 15));
-        $directory->attach($admissions, 'admitting_doctor_id', 'admitting_doctor');
 
         return response()->json($admissions);
     }
 
-    public function store(StoreAdmissionRequest $request, DoctorDirectory $directory): JsonResponse
+    public function store(StoreAdmissionRequest $request): JsonResponse
     {
         $admission = $this->admissionService->admit($request->validated(), $request->user());
 
-        return response()->json($this->attachDoctors($admission->load($this->showRelations()), $directory), Response::HTTP_CREATED);
+        return response()->json($admission->load($this->showRelations()), Response::HTTP_CREATED);
     }
 
-    public function show(Admission $admission, DoctorDirectory $directory): JsonResponse
+    public function show(Admission $admission): JsonResponse
     {
-        return response()->json($this->attachDoctors($admission->load($this->showRelations()), $directory));
+        return response()->json($admission->load($this->showRelations()));
     }
 
-    public function discharge(DischargeAdmissionRequest $request, Admission $admission, DoctorDirectory $directory): JsonResponse
+    public function discharge(DischargeAdmissionRequest $request, Admission $admission): JsonResponse
     {
         $admission = $this->admissionService->discharge($admission, $request->validated(), $request->user());
 
-        return response()->json($this->attachDoctors($admission->load($this->showRelations()), $directory));
+        return response()->json($admission->load($this->showRelations()));
     }
 
-    public function cancel(CancelAdmissionRequest $request, Admission $admission, DoctorDirectory $directory): JsonResponse
+    public function cancel(CancelAdmissionRequest $request, Admission $admission): JsonResponse
     {
         $admission = $this->admissionService->cancel($admission, $request->validated(), $request->user());
 
-        return response()->json($this->attachDoctors($admission->load($this->showRelations()), $directory));
+        return response()->json($admission->load($this->showRelations()));
     }
 }

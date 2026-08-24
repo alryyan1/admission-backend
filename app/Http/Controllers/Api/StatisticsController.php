@@ -6,10 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\AdmissionDeposit;
 use App\Models\Bed;
+use App\Models\Doctor;
 use App\Models\Invoice;
 use App\Models\Operation;
 use App\Models\RequestedService;
-use App\Services\DoctorDirectory;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -118,28 +118,31 @@ class StatisticsController extends Controller
         ]);
     }
 
-    public function doctorsAndServices(Request $request, DoctorDirectory $directory): JsonResponse
+    public function doctorsAndServices(Request $request): JsonResponse
     {
         [$from, $to] = $this->resolveRange($request);
 
-        $topDoctors = Admission::query()
+        $topDoctorRows = Admission::query()
             ->whereNotNull('admitting_doctor_id')
             ->whereBetween('admission_date', [$from, $to])
             ->selectRaw('admitting_doctor_id, COUNT(*) as admissions_count')
             ->groupBy('admitting_doctor_id')
             ->orderByDesc('admissions_count')
             ->limit(10)
-            ->get()
-            ->map(function ($row) use ($directory) {
-                $doctor = $directory->find((int) $row->admitting_doctor_id);
+            ->get();
 
-                return [
-                    'id' => (int) $row->admitting_doctor_id,
-                    'name' => $doctor['name'] ?? null,
-                    'specialist' => $doctor['specialist'] ?? null,
-                    'admissions_count' => (int) $row->admissions_count,
-                ];
-            });
+        $doctorsById = Doctor::query()->whereIn('id', $topDoctorRows->pluck('admitting_doctor_id'))->get()->keyBy('id');
+
+        $topDoctors = $topDoctorRows->map(function ($row) use ($doctorsById) {
+            $doctor = $doctorsById->get((int) $row->admitting_doctor_id);
+
+            return [
+                'id' => (int) $row->admitting_doctor_id,
+                'name' => $doctor?->name,
+                'specialist' => $doctor?->specialist,
+                'admissions_count' => (int) $row->admissions_count,
+            ];
+        });
 
         $topServices = RequestedService::query()
             ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
@@ -156,7 +159,7 @@ class StatisticsController extends Controller
         ]);
     }
 
-    public function operations(Request $request, DoctorDirectory $directory): JsonResponse
+    public function operations(Request $request): JsonResponse
     {
         [$from, $to] = $this->resolveRange($request);
 
@@ -183,7 +186,7 @@ class StatisticsController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $bySurgeon = Operation::query()
+        $bySurgeonRows = Operation::query()
             ->whereNotNull('surgeon_id')
             ->whereBetween('scheduled_at', [$from, $to])
             ->selectRaw('surgeon_id, COUNT(*) as total')
@@ -192,19 +195,22 @@ class StatisticsController extends Controller
             ->groupBy('surgeon_id')
             ->orderByDesc('total')
             ->limit(10)
-            ->get()
-            ->map(function ($row) use ($directory) {
-                $doctor = $directory->find((int) $row->surgeon_id);
+            ->get();
 
-                return [
-                    'id' => (int) $row->surgeon_id,
-                    'name' => $doctor['name'] ?? null,
-                    'specialist' => $doctor['specialist'] ?? null,
-                    'total' => (int) $row->total,
-                    'completed_count' => (int) $row->completed_count,
-                    'cancelled_count' => (int) $row->cancelled_count,
-                ];
-            });
+        $surgeonsById = Doctor::query()->whereIn('id', $bySurgeonRows->pluck('surgeon_id'))->get()->keyBy('id');
+
+        $bySurgeon = $bySurgeonRows->map(function ($row) use ($surgeonsById) {
+            $doctor = $surgeonsById->get((int) $row->surgeon_id);
+
+            return [
+                'id' => (int) $row->surgeon_id,
+                'name' => $doctor?->name,
+                'specialist' => $doctor?->specialist,
+                'total' => (int) $row->total,
+                'completed_count' => (int) $row->completed_count,
+                'cancelled_count' => (int) $row->cancelled_count,
+            ];
+        });
 
         return response()->json([
             'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
