@@ -93,4 +93,29 @@ class AdmissionRoleAuthorizationTest extends TestCase
 
         $response->assertCreated();
     }
+
+    public function test_nurse_cannot_remove_a_deposit(): void
+    {
+        $nurse = User::factory()->role('nurse')->create();
+        $admission = Admission::factory()->create();
+        $deposit = $admission->deposits()->create(['amount' => 50000, 'paid_at' => now()]);
+
+        $response = $this->actingAs($nurse, 'sanctum')
+            ->deleteJson("/api/admissions/{$admission->id}/deposits/{$deposit->id}");
+
+        $response->assertForbidden();
+    }
+
+    public function test_cashier_can_remove_a_deposit(): void
+    {
+        $cashier = User::factory()->role('cashier')->create();
+        $admission = Admission::factory()->create();
+        $deposit = $admission->deposits()->create(['amount' => 50000, 'paid_at' => now()]);
+
+        $response = $this->actingAs($cashier, 'sanctum')
+            ->deleteJson("/api/admissions/{$admission->id}/deposits/{$deposit->id}");
+
+        $response->assertNoContent();
+        $this->assertModelMissing($deposit);
+    }
 }

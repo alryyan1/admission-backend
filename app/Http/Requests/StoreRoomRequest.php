@@ -23,7 +23,7 @@ class StoreRoomRequest extends FormRequest
                 'required', 'string', 'max:50',
                 Rule::unique('rooms')->where('ward_id', $this->input('ward_id')),
             ],
-            'room_type' => ['required', Rule::in(['normal', 'vip', 'operation'])],
+            'room_type' => ['required', Rule::in(['normal', 'vip', 'operation', 'ward'])],
             'capacity' => ['required', 'integer', 'min:0'],
             'price_per_day' => ['nullable', 'numeric', 'min:0'],
             'is_short_stay' => ['sometimes', 'boolean'],

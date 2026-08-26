@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendAdmissionWhatsAppNotice;
 use App\Models\Admission;
 use App\Models\Bed;
 use App\Models\ChartOpeningServiceSetting;
@@ -18,7 +19,7 @@ class AdmissionService
      */
     public function admit(array $data, User $user): Admission
     {
-        return DB::transaction(function () use ($data, $user) {
+        $admission = DB::transaction(function () use ($data, $user) {
             $bed = Bed::with('room')->whereKey($data['bed_id'])->lockForUpdate()->firstOrFail();
 
             if ($bed->status !== 'available') {
@@ -38,6 +39,10 @@ class AdmissionService
 
             return $admission;
         });
+
+        SendAdmissionWhatsAppNotice::dispatch($admission);
+
+        return $admission;
     }
 
     private function addChartOpeningService(Admission $admission, bool $isShortStay): void

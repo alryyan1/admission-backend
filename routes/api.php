@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AdmissionDepositController;
 use App\Http\Controllers\Api\AdmissionInvoiceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BedController;
+use App\Http\Controllers\Api\CashierController;
 use App\Http\Controllers\Api\ChartOpeningServiceSettingController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\DoctorOrderController;
@@ -23,8 +24,8 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\ServiceCategoryController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\SessionController;
-use App\Http\Controllers\Api\SpecialistController;
 use App\Http\Controllers\Api\ShortStayServiceSettingController;
+use App\Http\Controllers\Api\SpecialistController;
 use App\Http\Controllers\Api\StatisticsController;
 use App\Http\Controllers\Api\TeamRoleController;
 use App\Http\Controllers\Api\TreatmentDoseController;
@@ -120,6 +121,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/admissions/{admission}/deposits', [AdmissionDepositController::class, 'index']);
     Route::post('/admissions/{admission}/deposits', [AdmissionDepositController::class, 'store'])->middleware('role:admin,cashier');
+    Route::delete('/admissions/{admission}/deposits/{deposit}', [AdmissionDepositController::class, 'destroy'])->middleware('role:admin,cashier');
 
     Route::get('/admissions/{admission}/services', [RequestedServiceController::class, 'index']);
     Route::post('/admissions/{admission}/services', [RequestedServiceController::class, 'store'])->middleware('role:admin,nurse,doctor');
@@ -141,6 +143,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/operations/{operation}/team-members/{teamMember}', [OperationController::class, 'removeTeamMember'])->middleware('role:admin,doctor');
     Route::post('/operations/{operation}/supplies', [OperationController::class, 'addSupply'])->middleware('role:admin,doctor,nurse');
     Route::delete('/operations/{operation}/supplies/{supply}', [OperationController::class, 'removeSupply'])->middleware('role:admin,doctor,nurse');
+
+    Route::get('/cashier/admissions', [CashierController::class, 'admissions'])->middleware('role:admin,cashier');
 
     Route::get('/admissions/{admission}/invoice', [AdmissionInvoiceController::class, 'show']);
 

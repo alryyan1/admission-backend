@@ -25,7 +25,7 @@ class UpdateRoomRequest extends FormRequest
                 'sometimes', 'required', 'string', 'max:50',
                 Rule::unique('rooms')->where('ward_id', $wardId)->ignore($this->route('room')),
             ],
-            'room_type' => ['sometimes', 'required', Rule::in(['normal', 'vip', 'operation'])],
+            'room_type' => ['sometimes', 'required', Rule::in(['normal', 'vip', 'operation', 'ward'])],
             'capacity' => ['sometimes', 'required', 'integer', 'min:0'],
             'price_per_day' => ['nullable', 'numeric', 'min:0'],
             'is_short_stay' => ['sometimes', 'boolean'],
