@@ -5,11 +5,13 @@ use App\Http\Controllers\Api\AdmissionController;
 use App\Http\Controllers\Api\AdmissionDepositController;
 use App\Http\Controllers\Api\AdmissionInvoiceController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BackupController;
 use App\Http\Controllers\Api\BedController;
 use App\Http\Controllers\Api\CashierController;
 use App\Http\Controllers\Api\ChartOpeningServiceSettingController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\DoctorOrderController;
+use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FacilitySettingController;
 use App\Http\Controllers\Api\FloorController;
 use App\Http\Controllers\Api\InvoiceController;
@@ -90,6 +92,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('payment-methods', PaymentMethodController::class)->only(['index']);
     Route::apiResource('payment-methods', PaymentMethodController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
 
+    Route::apiResource('expenses', ExpenseController::class)->middleware('role:admin,cashier');
+
     Route::middleware('role:admin')->group(function () {
         Route::get('/settings/chart-opening-service', [ChartOpeningServiceSettingController::class, 'show']);
         Route::put('/settings/chart-opening-service', [ChartOpeningServiceSettingController::class, 'update']);
@@ -167,5 +171,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/activity-logs', [ActivityLogController::class, 'index']);
         Route::get('/activity-logs/subject-types', [ActivityLogController::class, 'subjectTypes']);
         Route::get('/activity-logs/causers', [ActivityLogController::class, 'causers']);
+
+        Route::get('/backups', [BackupController::class, 'index']);
+        Route::post('/backups', [BackupController::class, 'store']);
+        Route::get('/backups/{filename}/download', [BackupController::class, 'download'])->where('filename', '.*');
+        Route::delete('/backups/{filename}', [BackupController::class, 'destroy'])->where('filename', '.*');
     });
 });

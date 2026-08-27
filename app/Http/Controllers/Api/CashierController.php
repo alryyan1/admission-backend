@@ -13,7 +13,7 @@ class CashierController extends Controller
     public function admissions(Request $request): JsonResponse
     {
         $query = Admission::query()
-            ->with(['patient', 'bed.room.ward.floor', 'requestedServices', 'deposits'])
+            ->with(['patient', 'bed.room.ward.floor', 'requestedServices', 'deposits', 'operations.procedure'])
             ->where('status', 'admitted');
 
         if ($request->filled('search')) {
@@ -28,12 +28,14 @@ class CashierController extends Controller
 
                 return [
                     'id' => $admission->id,
+                    'admission_number' => $admission->admission_number,
                     'admission_date' => $admission->admission_date,
                     'patient' => $admission->patient,
                     'bed' => $admission->bed,
                     'services_total' => $servicesTotal,
                     'deposits_total' => $depositsTotal,
                     'balance_due' => round($servicesTotal - $depositsTotal, 2),
+                    'operations' => $admission->operations,
                 ];
             })
             ->sortByDesc('balance_due')

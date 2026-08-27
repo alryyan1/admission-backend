@@ -26,7 +26,7 @@ class StoreOperationRequest extends FormRequest
             'expected_duration_minutes' => ['nullable', 'integer', 'min:1'],
             'anesthesia_type' => ['nullable', 'string', 'max:255'],
             'requested_by_doctor_id' => ['nullable', 'integer', 'exists:doctors,id'],
-            'scheduled_at' => ['required', 'date'],
+            'scheduled_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }

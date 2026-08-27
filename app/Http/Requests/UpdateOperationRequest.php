@@ -26,7 +26,7 @@ class UpdateOperationRequest extends FormRequest
             'expected_duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'anesthesia_type' => ['sometimes', 'nullable', 'string', 'max:255'],
             'requested_by_doctor_id' => ['sometimes', 'nullable', 'integer', 'exists:doctors,id'],
-            'scheduled_at' => ['sometimes', 'date'],
+            'scheduled_at' => ['sometimes', 'nullable', 'date'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];
     }

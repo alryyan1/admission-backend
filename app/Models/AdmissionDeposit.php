@@ -15,6 +15,7 @@ class AdmissionDeposit extends Model
         'paid_by',
         'amount',
         'payment_method_id',
+        'comment',
         'paid_at',
     ];
 
