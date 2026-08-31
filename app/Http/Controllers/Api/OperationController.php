@@ -3,9 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\CancelOperationRequest;
-use App\Http\Requests\CompleteOperationRequest;
-use App\Http\Requests\PrepareOperationRequest;
 use App\Http\Requests\StoreOperationRequest;
 use App\Http\Requests\StoreOperationSupplyRequest;
 use App\Http\Requests\StoreOperationTeamMemberRequest;
@@ -31,29 +28,18 @@ class OperationController extends Controller
         return [
             'admission.patient',
             'admission.bed.room.ward',
-            'operationRoom.ward',
             'teamMembers.doctor',
             'teamMembers.role',
+            'teamMembers.paymentMethod',
             'supplies',
             'procedure.category',
             'surgeon',
-            'requestedByDoctor',
         ];
     }
 
     private function loadOperation(Operation $operation): Operation
     {
-        $operation->load([
-            'admission.patient',
-            'admission.bed.room.ward',
-            'operationRoom.ward',
-            'teamMembers.doctor',
-            'teamMembers.role',
-            'supplies',
-            'procedure.category',
-            'surgeon',
-            'requestedByDoctor',
-        ]);
+        $operation->load($this->listRelations());
 
         return $operation;
     }
@@ -61,7 +47,7 @@ class OperationController extends Controller
     public function index(Admission $admission): JsonResponse
     {
         $operations = $admission->operations()
-            ->with(['operationRoom.ward', 'teamMembers.doctor', 'teamMembers.role', 'supplies', 'procedure.category', 'surgeon', 'requestedByDoctor'])
+            ->with(['teamMembers.doctor', 'teamMembers.role', 'supplies', 'procedure.category', 'surgeon'])
             ->latest('scheduled_at')
             ->get();
 
@@ -71,10 +57,6 @@ class OperationController extends Controller
     public function all(Request $request): JsonResponse
     {
         $query = Operation::with($this->listRelations());
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
-        }
 
         if ($request->filled('surgeon_id')) {
             $query->where('surgeon_id', $request->integer('surgeon_id'));
@@ -117,38 +99,6 @@ class OperationController extends Controller
     public function update(UpdateOperationRequest $request, Operation $operation): JsonResponse
     {
         $operation = $this->operationService->update($operation, $request->validated());
-        $this->loadOperation($operation);
-
-        return response()->json($operation);
-    }
-
-    public function prepare(PrepareOperationRequest $request, Operation $operation): JsonResponse
-    {
-        $operation = $this->operationService->prepare($operation, $request->validated());
-        $this->loadOperation($operation);
-
-        return response()->json($operation);
-    }
-
-    public function start(Operation $operation): JsonResponse
-    {
-        $operation = $this->operationService->start($operation);
-        $this->loadOperation($operation);
-
-        return response()->json($operation);
-    }
-
-    public function complete(CompleteOperationRequest $request, Operation $operation): JsonResponse
-    {
-        $operation = $this->operationService->complete($operation, $request->validated());
-        $this->loadOperation($operation);
-
-        return response()->json($operation);
-    }
-
-    public function cancel(CancelOperationRequest $request, Operation $operation): JsonResponse
-    {
-        $operation = $this->operationService->cancel($operation, $request->validated());
         $this->loadOperation($operation);
 
         return response()->json($operation);

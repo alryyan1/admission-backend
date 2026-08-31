@@ -18,11 +18,8 @@ class OperationFactory extends Factory
         return [
             'admission_id' => Admission::factory(),
             'surgeon_id' => Doctor::factory(),
-            'operation_room_id' => null,
             'procedure_id' => Procedure::factory(),
-            'priority' => 'scheduled',
             'scheduled_at' => now()->addDay(),
-            'status' => 'scheduled',
         ];
     }
 }

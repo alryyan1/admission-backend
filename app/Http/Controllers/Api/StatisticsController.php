@@ -7,9 +7,12 @@ use App\Models\Admission;
 use App\Models\AdmissionDeposit;
 use App\Models\Bed;
 use App\Models\Doctor;
+use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Operation;
+use App\Models\OperationTeamMember;
 use App\Models\RequestedService;
+use App\Models\Room;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,6 +25,16 @@ class StatisticsController extends Controller
         $occupiedBeds = Bed::query()->where('status', 'occupied')->count();
         $maintenanceBeds = Bed::query()->where('status', 'maintenance')->count();
         $availableBeds = $totalBeds - $occupiedBeds - $maintenanceBeds;
+
+        $shortStayBeds = Bed::query()->whereHas('room', fn ($query) => $query->where('is_short_stay', true));
+        $shortStayTotalBeds = (clone $shortStayBeds)->count();
+        $shortStayOccupiedBeds = (clone $shortStayBeds)->where('status', 'occupied')->count();
+        $shortStayMaintenanceBeds = (clone $shortStayBeds)->where('status', 'maintenance')->count();
+        $availableShortStayBeds = $shortStayTotalBeds - $shortStayOccupiedBeds - $shortStayMaintenanceBeds;
+
+        $availableRooms = Room::query()->whereHas('beds', fn ($query) => $query->where('status', 'available'))->count();
+        $shortStayRoomsTotal = Room::query()->where('is_short_stay', true)->count();
+        $regularRoomsTotal = Room::query()->where('is_short_stay', false)->count();
 
         $byWard = Bed::query()
             ->join('rooms', 'rooms.id', '=', 'beds.room_id')
@@ -40,6 +53,10 @@ class StatisticsController extends Controller
                 'total_beds' => $totalBeds,
                 'occupied_beds' => $occupiedBeds,
                 'available_beds' => $availableBeds,
+                'available_short_stay_beds' => $availableShortStayBeds,
+                'available_rooms' => $availableRooms,
+                'short_stay_rooms_total' => $shortStayRoomsTotal,
+                'regular_rooms_total' => $regularRoomsTotal,
                 'maintenance_beds' => $maintenanceBeds,
                 'occupancy_rate' => $totalBeds > 0 ? round($occupiedBeds / $totalBeds * 100, 1) : 0,
             ],
@@ -105,11 +122,22 @@ class StatisticsController extends Controller
             ->groupBy('payment_methods.name')
             ->pluck('total', 'method');
 
+        $depositsTotal = (float) AdmissionDeposit::query()->whereBetween('paid_at', [$from, $to])->sum('amount');
+
+        $entitlementsTotal = (float) OperationTeamMember::query()
+            ->whereBetween('entitlement_paid_at', [$from, $to])
+            ->sum('entitlement_amount');
+
+        $expensesTotal = (float) Expense::query()->whereBetween('expense_date', [$from, $to])->sum('amount');
+
         return response()->json([
             'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'paid_total' => (float) Invoice::query()->where('status', 'paid')->whereBetween('paid_at', [$from, $to])->sum('total'),
             'outstanding_total' => (float) Invoice::query()->whereIn('status', ['issued', 'draft'])->sum('total'),
-            'deposits_total' => (float) AdmissionDeposit::query()->whereBetween('paid_at', [$from, $to])->sum('amount'),
+            'deposits_total' => $depositsTotal,
+            'entitlements_total' => $entitlementsTotal,
+            'expenses_total' => $expensesTotal,
+            'net_total' => $depositsTotal - $entitlementsTotal - $expensesTotal,
             'services_total' => (float) (RequestedService::query()
                 ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
                 ->selectRaw('SUM(quantity * unit_price) as total')
@@ -171,28 +199,14 @@ class StatisticsController extends Controller
             ->whereBetween('scheduled_at', [$todayStart, $todayEnd])
             ->count();
 
-        $completedToday = Operation::query()
-            ->where('status', 'completed')
-            ->whereBetween('ended_at', [$todayStart, $todayEnd])
-            ->count();
-
-        $cancelledToday = Operation::query()
-            ->where('status', 'cancelled')
-            ->whereBetween('cancelled_at', [$todayStart, $todayEnd])
-            ->count();
-
-        $statusCounts = Operation::query()
+        $totalInRange = Operation::query()
             ->whereBetween('scheduled_at', [$from, $to])
-            ->selectRaw('status, COUNT(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
+            ->count();
 
         $bySurgeonRows = Operation::query()
             ->whereNotNull('surgeon_id')
             ->whereBetween('scheduled_at', [$from, $to])
             ->selectRaw('surgeon_id, COUNT(*) as total')
-            ->selectRaw("SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count")
-            ->selectRaw("SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_count")
             ->groupBy('surgeon_id')
             ->orderByDesc('total')
             ->limit(10)
@@ -208,8 +222,6 @@ class StatisticsController extends Controller
                 'name' => $doctor?->name,
                 'specialist' => $doctor?->specialist?->name,
                 'total' => (int) $row->total,
-                'completed_count' => (int) $row->completed_count,
-                'cancelled_count' => (int) $row->cancelled_count,
             ];
         });
 
@@ -217,10 +229,8 @@ class StatisticsController extends Controller
             'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'today' => [
                 'scheduled' => $scheduledToday,
-                'completed' => $completedToday,
-                'cancelled' => $cancelledToday,
             ],
-            'status_counts' => $statusCounts,
+            'total_in_range' => $totalInRange,
             'by_surgeon' => $bySurgeon,
         ]);
     }

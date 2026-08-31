@@ -24,6 +24,7 @@ class CashierController extends Controller
         $admissions = $query->get()
             ->map(function (Admission $admission) {
                 $servicesTotal = round($admission->requestedServices->sum('total_price'), 2);
+                $operationsTotal = round((float) $admission->operations->whereNotNull('price')->sum('price'), 2);
                 $depositsTotal = round((float) $admission->deposits->sum('amount'), 2);
 
                 return [
@@ -33,8 +34,9 @@ class CashierController extends Controller
                     'patient' => $admission->patient,
                     'bed' => $admission->bed,
                     'services_total' => $servicesTotal,
+                    'operations_total' => $operationsTotal,
                     'deposits_total' => $depositsTotal,
-                    'balance_due' => round($servicesTotal - $depositsTotal, 2),
+                    'balance_due' => round($servicesTotal + $operationsTotal - $depositsTotal, 2),
                     'operations' => $admission->operations,
                 ];
             })

@@ -34,13 +34,11 @@ class AdmissionController extends Controller
             'deposits.paymentMethod',
             'requestedServices',
             'invoices',
-            'operations.operationRoom',
             'operations.teamMembers.doctor',
             'operations.teamMembers.role',
             'operations.supplies',
             'operations.procedure.category',
             'operations.surgeon',
-            'operations.requestedByDoctor',
         ];
     }
 

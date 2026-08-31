@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AccountantController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AdmissionController;
 use App\Http\Controllers\Api\AdmissionDepositController;
@@ -139,16 +140,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/operations', [OperationController::class, 'all']);
     Route::get('/operations/{operation}', [OperationController::class, 'show']);
     Route::patch('/operations/{operation}', [OperationController::class, 'update'])->middleware('role:admin,doctor');
-    Route::patch('/operations/{operation}/prepare', [OperationController::class, 'prepare'])->middleware('role:admin,doctor,nurse');
-    Route::patch('/operations/{operation}/start', [OperationController::class, 'start'])->middleware('role:admin,doctor');
-    Route::patch('/operations/{operation}/complete', [OperationController::class, 'complete'])->middleware('role:admin,doctor');
-    Route::patch('/operations/{operation}/cancel', [OperationController::class, 'cancel'])->middleware('role:admin,doctor');
     Route::post('/operations/{operation}/team-members', [OperationController::class, 'addTeamMember'])->middleware('role:admin,doctor');
     Route::delete('/operations/{operation}/team-members/{teamMember}', [OperationController::class, 'removeTeamMember'])->middleware('role:admin,doctor');
     Route::post('/operations/{operation}/supplies', [OperationController::class, 'addSupply'])->middleware('role:admin,doctor,nurse');
     Route::delete('/operations/{operation}/supplies/{supply}', [OperationController::class, 'removeSupply'])->middleware('role:admin,doctor,nurse');
 
     Route::get('/cashier/admissions', [CashierController::class, 'admissions'])->middleware('role:admin,cashier');
+
+    Route::get('/accountant/operation-patients', [AccountantController::class, 'operationPatients'])->middleware('role:admin,cashier');
+    Route::get('/accountant/team-members', [AccountantController::class, 'teamMembers'])->middleware('role:admin,cashier');
+    Route::patch('/accountant/team-members/{teamMember}/entitlement', [AccountantController::class, 'updateEntitlement'])->middleware('role:admin,cashier');
 
     Route::get('/admissions/{admission}/invoice', [AdmissionInvoiceController::class, 'show']);
 

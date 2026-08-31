@@ -21,6 +21,7 @@ class AdmissionInvoiceController extends Controller
             'patient' => $admission->patient,
             'requested_services' => $charges['requested_services'],
             'services_total' => $charges['services_total'],
+            'operations_total' => $charges['operations_total'],
             'total' => $charges['total'],
             'deposits' => $charges['deposits'],
             'deposits_total' => $charges['deposits_total'],
