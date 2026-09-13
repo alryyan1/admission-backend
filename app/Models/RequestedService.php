@@ -11,6 +11,8 @@ class RequestedService extends Model
 {
     use HasFactory;
 
+    public const AccommodationFeeName = 'رسوم الإقامة';
+
     protected $fillable = [
         'admission_id',
         'requested_by',

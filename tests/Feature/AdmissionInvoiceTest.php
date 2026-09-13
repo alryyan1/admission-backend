@@ -85,7 +85,7 @@ class AdmissionInvoiceTest extends TestCase
         $user = User::factory()->create();
         $room = Room::factory()->create(['is_short_stay' => true, 'price_12_hours' => null, 'price_24_hours' => null]);
         $bed = Bed::factory()->create(['room_id' => $room->id]);
-        $admission = Admission::factory()->create(['bed_id' => $bed->id, 'admission_duration_hours' => 12]);
+        $admission = Admission::factory()->create(['bed_id' => $bed->id]);
 
         $response = $this->actingAs($user, 'sanctum')
             ->getJson("/api/admissions/{$admission->id}/invoice");

@@ -13,7 +13,7 @@ class PaymentMethodSeeder extends Seeder
             'نقدي',
             'بنكك',
             'اوكاش',
-            'فوري'
+            'فوري',
         ];
 
         foreach ($methods as $name) {

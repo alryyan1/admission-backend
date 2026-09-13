@@ -18,6 +18,7 @@ class Admission extends Model
         'patient_id',
         'bed_id',
         'admitting_doctor_id',
+        'referred_by_doctor_id',
         'admitted_by',
         'discharged_by',
         'cancelled_by',
@@ -25,7 +26,6 @@ class Admission extends Model
         'admission_type',
         'admission_date',
         'discharge_date',
-        'admission_duration_hours',
         'status',
         'diagnosis',
         'admission_notes',
@@ -49,8 +49,17 @@ class Admission extends Model
 
         static::created(function (Admission $admission) {
             $admission->bed()->update(['status' => 'occupied']);
+
+            $sequence = static::query()
+                ->whereBetween('admission_date', [
+                    $admission->admission_date->copy()->startOfDay(),
+                    $admission->admission_date->copy()->endOfDay(),
+                ])
+                ->lockForUpdate()
+                ->count();
+
             $admission->forceFill([
-                'admission_number' => (string) $admission->id,
+                'admission_number' => (string) $sequence,
             ])->saveQuietly();
         });
 
@@ -74,6 +83,11 @@ class Admission extends Model
     public function admittingDoctor(): BelongsTo
     {
         return $this->belongsTo(Doctor::class, 'admitting_doctor_id');
+    }
+
+    public function referredByDoctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class, 'referred_by_doctor_id');
     }
 
     public function admittedBy(): BelongsTo

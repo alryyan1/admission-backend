@@ -29,6 +29,32 @@ class AdmissionCancellationTest extends TestCase
         $this->assertMatchesRegularExpression('/^\d+$/', $response->json('admission_number'));
     }
 
+    public function test_admission_number_increments_per_day_and_resets_the_next_day(): void
+    {
+        $user = User::factory()->create();
+        $beds = Bed::factory()->count(3)->create(['status' => 'available']);
+
+        $first = $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [
+            'patient_id' => Patient::factory()->create()->id,
+            'bed_id' => $beds[0]->id,
+            'admission_date' => '2026-09-10 09:00:00',
+        ]);
+        $second = $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [
+            'patient_id' => Patient::factory()->create()->id,
+            'bed_id' => $beds[1]->id,
+            'admission_date' => '2026-09-10 15:00:00',
+        ]);
+        $nextDay = $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [
+            'patient_id' => Patient::factory()->create()->id,
+            'bed_id' => $beds[2]->id,
+            'admission_date' => '2026-09-11 08:00:00',
+        ]);
+
+        $first->assertJsonPath('admission_number', '1');
+        $second->assertJsonPath('admission_number', '2');
+        $nextDay->assertJsonPath('admission_number', '1');
+    }
+
     public function test_admitting_to_a_short_stay_bed_sets_short_stay_admission_type(): void
     {
         $user = User::factory()->create();
@@ -38,7 +64,6 @@ class AdmissionCancellationTest extends TestCase
         $response = $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [
             'patient_id' => Patient::factory()->create()->id,
             'bed_id' => $bed->id,
-            'admission_duration_hours' => 12,
         ]);
 
         $response->assertCreated()->assertJsonPath('admission_type', 'short_stay');

@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CancelAdmissionRequest;
 use App\Http\Requests\DischargeAdmissionRequest;
 use App\Http\Requests\StoreAdmissionRequest;
+use App\Http\Requests\UpdateAdmissionRequest;
 use App\Models\Admission;
 use App\Services\AdmissionService;
+use App\Services\InvoiceService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +17,10 @@ use Illuminate\Http\Response;
 
 class AdmissionController extends Controller
 {
-    public function __construct(private readonly AdmissionService $admissionService) {}
+    public function __construct(
+        private readonly AdmissionService $admissionService,
+        private readonly InvoiceService $invoiceService,
+    ) {}
 
     /**
      * @return array<int|string, mixed>
@@ -29,6 +34,7 @@ class AdmissionController extends Controller
             'dischargedBy',
             'cancelledBy',
             'admittingDoctor',
+            'referredByDoctor',
             'vitalSigns' => fn ($query) => $query->latest('recorded_at'),
             'doctorOrders.orderedBy',
             'deposits.paymentMethod',
@@ -44,7 +50,10 @@ class AdmissionController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Admission::with(['patient', 'bed.room.ward.floor', 'admittingDoctor'])->withCount('operations');
+        $query = Admission::with([
+            'patient', 'bed.room.ward.floor', 'admittingDoctor', 'referredByDoctor',
+            'requestedServices', 'operations.procedure', 'deposits',
+        ])->withCount('operations');
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
@@ -76,6 +85,10 @@ class AdmissionController extends Controller
 
         $admissions = $query->latest('admission_date')->paginate($request->integer('per_page', 15));
 
+        $admissions->getCollection()->each(
+            fn (Admission $admission) => $admission->balance_due = $this->invoiceService->previewCharges($admission)['balance_due']
+        );
+
         return response()->json($admissions);
     }
 
@@ -88,6 +101,14 @@ class AdmissionController extends Controller
 
     public function show(Admission $admission): JsonResponse
     {
+        return response()->json($admission->load($this->showRelations()));
+    }
+
+    public function update(UpdateAdmissionRequest $request, Admission $admission): JsonResponse
+    {
+        $admission->assertMutable($request->user());
+        $admission->update($request->validated());
+
         return response()->json($admission->load($this->showRelations()));
     }
 

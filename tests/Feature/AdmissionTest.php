@@ -2,9 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Admission;
 use App\Models\Bed;
+use App\Models\Doctor;
 use App\Models\Patient;
-use App\Models\Room;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -33,52 +34,6 @@ class AdmissionTest extends TestCase
     {
         $user = User::factory()->create();
         $bed = Bed::factory()->create(['status' => 'occupied']);
-
-        $response = $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [
-            'patient_id' => Patient::factory()->create()->id,
-            'bed_id' => $bed->id,
-        ]);
-
-        $response->assertUnprocessable();
-    }
-
-    public function test_admitting_to_a_short_stay_bed_accepts_12_or_24_hours(): void
-    {
-        $user = User::factory()->create();
-        $room = Room::factory()->create(['is_short_stay' => true]);
-        $bed = Bed::factory()->create(['room_id' => $room->id, 'status' => 'available']);
-
-        $response = $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [
-            'patient_id' => Patient::factory()->create()->id,
-            'bed_id' => $bed->id,
-            'admission_duration_hours' => 12,
-        ]);
-
-        $response->assertCreated()->assertJsonPath('admission_duration_hours', 12);
-    }
-
-    public function test_admitting_to_a_short_stay_bed_rejects_arbitrary_durations(): void
-    {
-        $user = User::factory()->create();
-        $room = Room::factory()->create(['is_short_stay' => true]);
-        $bed = Bed::factory()->create(['room_id' => $room->id, 'status' => 'available']);
-
-        foreach ([6, 18, 36, 48] as $hours) {
-            $response = $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [
-                'patient_id' => Patient::factory()->create()->id,
-                'bed_id' => $bed->id,
-                'admission_duration_hours' => $hours,
-            ]);
-
-            $response->assertUnprocessable();
-        }
-    }
-
-    public function test_admitting_to_a_short_stay_bed_without_a_duration_is_rejected(): void
-    {
-        $user = User::factory()->create();
-        $room = Room::factory()->create(['is_short_stay' => true]);
-        $bed = Bed::factory()->create(['room_id' => $room->id, 'status' => 'available']);
 
         $response = $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [
             'patient_id' => Patient::factory()->create()->id,
@@ -175,6 +130,80 @@ class AdmissionTest extends TestCase
             ]);
 
         $response->assertUnprocessable();
+    }
+
+    public function test_admission_clerk_can_update_admitting_and_referring_doctors(): void
+    {
+        $clerk = User::factory()->role('admission_clerk')->create();
+        $patient = Patient::factory()->create();
+        $bed = Bed::factory()->create(['status' => 'available']);
+        $admittingDoctor = Doctor::factory()->create();
+        $referringDoctor = Doctor::factory()->create();
+
+        $admission = $this->actingAs($clerk, 'sanctum')
+            ->postJson('/api/admissions', [
+                'patient_id' => $patient->id,
+                'bed_id' => $bed->id,
+            ])->json();
+
+        $response = $this->actingAs($clerk, 'sanctum')
+            ->patchJson("/api/admissions/{$admission['id']}", [
+                'admitting_doctor_id' => $admittingDoctor->id,
+                'referred_by_doctor_id' => $referringDoctor->id,
+                'diagnosis' => 'التهاب رئوي',
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('admitting_doctor.id', $admittingDoctor->id)
+            ->assertJsonPath('referred_by_doctor.id', $referringDoctor->id)
+            ->assertJsonPath('diagnosis', 'التهاب رئوي');
+    }
+
+    public function test_non_admin_cannot_update_a_discharged_admission(): void
+    {
+        $admin = User::factory()->create();
+        $clerk = User::factory()->role('admission_clerk')->create();
+        $patient = Patient::factory()->create();
+        $bed = Bed::factory()->create(['status' => 'available']);
+
+        $admission = $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/admissions', [
+                'patient_id' => $patient->id,
+                'bed_id' => $bed->id,
+            ])->json();
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admissions/{$admission['id']}/discharge", []);
+
+        $response = $this->actingAs($clerk, 'sanctum')
+            ->patchJson("/api/admissions/{$admission['id']}", [
+                'diagnosis' => 'تشخيص جديد',
+            ]);
+
+        $response->assertUnprocessable();
+    }
+
+    public function test_admissions_index_reports_outstanding_balance_due(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        $bed = Bed::factory()->create(['status' => 'available']);
+
+        $admission = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/admissions', [
+                'patient_id' => $patient->id,
+                'bed_id' => $bed->id,
+            ])->json();
+
+        Admission::find($admission['id'])->requestedServices()->create([
+            'name' => 'أشعة',
+            'quantity' => 1,
+            'unit_price' => 10000,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/admissions');
+
+        $response->assertOk()->assertJsonFragment(['id' => $admission['id'], 'balance_due' => 10000]);
     }
 
     public function test_admin_can_still_add_vital_signs_to_a_discharged_admission(): void

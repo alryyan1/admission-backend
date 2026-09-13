@@ -130,6 +130,31 @@ class StatisticsController extends Controller
 
         $expensesTotal = (float) Expense::query()->whereBetween('expense_date', [$from, $to])->sum('amount');
 
+        $requestedServicesTotal = (float) (RequestedService::query()
+            ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
+            ->selectRaw('SUM(quantity * unit_price) as total')
+            ->value('total') ?? 0);
+
+        $shortStayTotal = (float) (RequestedService::query()
+            ->whereHas('admission', fn ($query) => $query
+                ->whereBetween('admission_date', [$from, $to])
+                ->where('admission_type', 'short_stay'))
+            ->selectRaw('SUM(quantity * unit_price) as total')
+            ->value('total') ?? 0);
+
+        $roomsTotal = (float) (RequestedService::query()
+            ->where('name', RequestedService::AccommodationFeeName)
+            ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
+            ->selectRaw('SUM(quantity * unit_price) as total')
+            ->value('total') ?? 0);
+
+        $servicesTotal = round($requestedServicesTotal - $shortStayTotal - $roomsTotal, 2);
+
+        $operationsTotal = (float) Operation::query()
+            ->whereNotNull('price')
+            ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
+            ->sum('price');
+
         return response()->json([
             'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'paid_total' => (float) Invoice::query()->where('status', 'paid')->whereBetween('paid_at', [$from, $to])->sum('total'),
@@ -138,10 +163,11 @@ class StatisticsController extends Controller
             'entitlements_total' => $entitlementsTotal,
             'expenses_total' => $expensesTotal,
             'net_total' => $depositsTotal - $entitlementsTotal - $expensesTotal,
-            'services_total' => (float) (RequestedService::query()
-                ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
-                ->selectRaw('SUM(quantity * unit_price) as total')
-                ->value('total') ?? 0),
+            'services_total' => $servicesTotal,
+            'short_stay_total' => $shortStayTotal,
+            'rooms_total' => $roomsTotal,
+            'operations_total' => $operationsTotal,
+            'charges_total' => round($servicesTotal + $shortStayTotal + $roomsTotal + $operationsTotal, 2),
             'daily_revenue' => $dailyRevenue,
             'deposits_by_method' => $depositsByMethod,
         ]);
@@ -173,13 +199,31 @@ class StatisticsController extends Controller
             ];
         });
 
-        $topServices = RequestedService::query()
+        $serviceRows = RequestedService::query()
             ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
             ->selectRaw('name, SUM(quantity) as total_quantity, SUM(quantity * unit_price) as total_revenue')
             ->groupBy('name')
-            ->orderByDesc('total_revenue')
-            ->limit(10)
             ->get();
+
+        $operationRows = Operation::query()
+            ->join('procedures', 'procedures.id', '=', 'operations.procedure_id')
+            ->whereNotNull('operations.price')
+            ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
+            ->selectRaw('procedures.name_ar as name, COUNT(*) as total_quantity, SUM(operations.price) as total_revenue')
+            ->groupBy('procedures.name_ar')
+            ->get();
+
+        $topServices = $serviceRows
+            ->concat($operationRows)
+            ->groupBy('name')
+            ->map(fn ($rows, $name) => [
+                'name' => $name,
+                'total_quantity' => (int) $rows->sum('total_quantity'),
+                'total_revenue' => (float) $rows->sum('total_revenue'),
+            ])
+            ->sortByDesc('total_revenue')
+            ->take(10)
+            ->values();
 
         return response()->json([
             'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
@@ -202,6 +246,11 @@ class StatisticsController extends Controller
         $totalInRange = Operation::query()
             ->whereBetween('scheduled_at', [$from, $to])
             ->count();
+
+        $revenueInRange = (float) Operation::query()
+            ->whereNotNull('price')
+            ->whereBetween('scheduled_at', [$from, $to])
+            ->sum('price');
 
         $bySurgeonRows = Operation::query()
             ->whereNotNull('surgeon_id')
@@ -231,6 +280,7 @@ class StatisticsController extends Controller
                 'scheduled' => $scheduledToday,
             ],
             'total_in_range' => $totalInRange,
+            'revenue_in_range' => $revenueInRange,
             'by_surgeon' => $bySurgeon,
         ]);
     }

@@ -76,7 +76,7 @@ class RequestedServiceController extends Controller
         }
 
         $service = Service::firstOrCreate(
-            ['name_ar' => 'رسوم الإقامة'],
+            ['name_ar' => RequestedService::AccommodationFeeName],
             ['price' => $room->price_per_day, 'is_active' => true],
         );
 
