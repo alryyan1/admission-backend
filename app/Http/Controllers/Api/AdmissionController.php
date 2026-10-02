@@ -68,6 +68,10 @@ class AdmissionController extends Controller
             $query->whereHas('patient', fn ($patientQuery) => $patientQuery->where('name', 'like', "%{$search}%"));
         }
 
+        if ($request->filled('admission_id')) {
+            $query->where('id', $request->integer('admission_id'));
+        }
+
         if ($request->filled('bed_id')) {
             $query->where('bed_id', $request->integer('bed_id'));
         } elseif ($request->filled('room_id')) {
@@ -85,9 +89,12 @@ class AdmissionController extends Controller
 
         $admissions = $query->latest('admission_date')->paginate($request->integer('per_page', 15));
 
-        $admissions->getCollection()->each(
-            fn (Admission $admission) => $admission->balance_due = $this->invoiceService->previewCharges($admission)['balance_due']
-        );
+        $admissions->getCollection()->each(function (Admission $admission): void {
+            $charges = $this->invoiceService->previewCharges($admission);
+            $admission->total_charges = $charges['total'];
+            $admission->paid_total = $charges['deposits_total'];
+            $admission->balance_due = $charges['balance_due'];
+        });
 
         return response()->json($admissions);
     }

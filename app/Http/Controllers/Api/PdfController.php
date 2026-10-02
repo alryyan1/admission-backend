@@ -8,7 +8,9 @@ use App\Models\AdmissionDeposit;
 use App\Models\Invoice;
 use App\Models\Operation;
 use App\Services\PdfDocumentService;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PdfController extends Controller
@@ -47,5 +49,12 @@ class PdfController extends Controller
     public function admissionSummary(Admission $admission): Response
     {
         return $this->documents->admissionSummary($admission);
+    }
+
+    public function revenueCalculator(Request $request): Response
+    {
+        $date = $request->filled('date') ? Carbon::parse($request->query('date')) : now();
+
+        return $this->documents->revenueCalculator($date, $request->user()?->name);
     }
 }

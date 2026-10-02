@@ -21,6 +21,8 @@ class UpdateTeamMemberEntitlementRequest extends FormRequest
             'entitlement_amount' => ['nullable', 'numeric', 'min:0'],
             'payment_method_id' => ['nullable', Rule::exists('payment_methods', 'id')],
             'entitlement_paid_at' => ['nullable', 'date'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'doctor_id' => ['nullable', 'integer', Rule::exists('doctors', 'id')],
         ];
     }
 }

@@ -4,90 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateTeamMemberEntitlementRequest;
-use App\Models\Operation;
 use App\Models\OperationTeamMember;
-use App\Models\Patient;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class AccountantController extends Controller
 {
-    /**
-     * Patients that have at least one operation. With no search term the
-     * 10 most recently operated patients are returned so the accountant's
-     * autocomplete is pre-populated; a search term widens the pool.
-     */
-    public function operationPatients(Request $request): JsonResponse
-    {
-        $search = $request->string('search')->trim()->toString();
-
-        $latestOperationAt = Operation::query()
-            ->selectRaw('MAX(operations.scheduled_at)')
-            ->join('admissions', 'admissions.id', '=', 'operations.admission_id')
-            ->whereColumn('admissions.patient_id', 'patients.id');
-
-        $patients = Patient::query()
-            ->whereHas('admissions.operations')
-            ->when($search !== '', fn ($q) => $q->where('patients.name', 'like', "%{$search}%"))
-            ->select(['patients.id', 'patients.name', 'patients.phone'])
-            ->selectSub($latestOperationAt, 'latest_operation_at')
-            ->orderByDesc('latest_operation_at')
-            ->limit($search !== '' ? 25 : 10)
-            ->get();
-
-        return response()->json($patients);
-    }
-
-    public function teamMembers(Request $request): JsonResponse
-    {
-        $query = OperationTeamMember::query()
-            ->with([
-                'doctor',
-                'role',
-                'paymentMethod',
-                'operation.procedure',
-                'operation.admission.patient',
-            ]);
-
-        if ($request->filled('search')) {
-            $search = $request->string('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhereHas('doctor', fn ($d) => $d->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('operation.admission.patient', fn ($p) => $p->where('name', 'like', "%{$search}%"));
-            });
-        }
-
-        if ($request->filled('patient_id')) {
-            $patientId = $request->integer('patient_id');
-            $query->whereHas('operation.admission', fn ($a) => $a->where('patient_id', $patientId));
-        }
-
-        if ($request->filled('date_from')) {
-            $dateFrom = $request->string('date_from')->toString();
-            $query->whereHas('operation', fn ($o) => $o->whereDate('scheduled_at', '>=', $dateFrom));
-        }
-
-        if ($request->filled('date_to')) {
-            $dateTo = $request->string('date_to')->toString();
-            $query->whereHas('operation', fn ($o) => $o->whereDate('scheduled_at', '<=', $dateTo));
-        }
-
-        if ($request->filled('unpaid_only') && $request->boolean('unpaid_only')) {
-            $query->whereNull('entitlement_amount');
-        }
-
-        $teamMembers = $query->latest('id')->get();
-
-        return response()->json($teamMembers);
-    }
-
     public function updateEntitlement(UpdateTeamMemberEntitlementRequest $request, OperationTeamMember $teamMember): JsonResponse
     {
         $validated = $request->validated();
 
         $this->guardEntitlementWithinOperationPrice($teamMember, $validated);
+        $this->guardNameRequiredWithoutDoctor($teamMember, $validated);
 
         $teamMember->update($validated);
         $teamMember->load(['doctor', 'role', 'paymentMethod', 'operation.procedure', 'operation.admission.patient']);
@@ -126,6 +54,28 @@ class AccountantController extends Controller
 
             throw ValidationException::withMessages([
                 'entitlement_amount' => ['قيمة الاستحقاق لا يمكن أن تتجاوز المتبقي من سعر العملية ('.number_format($remaining, 2).').'],
+            ]);
+        }
+    }
+
+    /**
+     * A team member must be identified either by a linked doctor or a
+     * free-text name; clearing both at once leaves it unidentifiable.
+     *
+     * @param  array<string, mixed>  $validated
+     */
+    private function guardNameRequiredWithoutDoctor(OperationTeamMember $teamMember, array $validated): void
+    {
+        if (! array_key_exists('name', $validated) && ! array_key_exists('doctor_id', $validated)) {
+            return;
+        }
+
+        $effectiveDoctorId = array_key_exists('doctor_id', $validated) ? $validated['doctor_id'] : $teamMember->doctor_id;
+        $effectiveName = array_key_exists('name', $validated) ? $validated['name'] : $teamMember->name;
+
+        if ($effectiveDoctorId === null && $effectiveName === null) {
+            throw ValidationException::withMessages([
+                'name' => ['اسم العضو مطلوب عندما لا يوجد طبيب مرتبط.'],
             ]);
         }
     }

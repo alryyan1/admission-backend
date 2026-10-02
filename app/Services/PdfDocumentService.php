@@ -12,7 +12,11 @@ use Illuminate\Support\Carbon;
 
 class PdfDocumentService
 {
-    public function __construct(private readonly PdfRenderer $renderer, private readonly InvoiceService $invoices) {}
+    public function __construct(
+        private readonly PdfRenderer $renderer,
+        private readonly InvoiceService $invoices,
+        private readonly RevenueCalculatorService $calculator,
+    ) {}
 
     public function depositReceipt(AdmissionDeposit $deposit): Response
     {
@@ -253,7 +257,7 @@ class PdfDocumentService
         $pdf->sectionTitle('بيانات المريض');
         $pdf->tableRow([
             'الاسم: '.($patient?->name ?? '—'),
-            'الجنس: '.($patient?->gender ? ($genderLabels[$patient->gender] ?? $patient->gender) : '—'),
+            'النوع: '.($patient?->gender ? ($genderLabels[$patient->gender] ?? $patient->gender) : '—'),
             'العمر: '.($patient?->age_year !== null ? $patient->age_year.' سنة' : '—'),
         ], [$w3, $w3, $w3]);
         $pdf->tableRow([
@@ -407,6 +411,44 @@ class PdfDocumentService
         $pdf->totalsBlock($totalsRows);
 
         return $this->renderer->toResponse($pdf, "admission-summary-{$admission->id}.pdf", false);
+    }
+
+    public function revenueCalculator(Carbon $date, ?string $generatedBy): Response
+    {
+        $data = $this->calculator->calculate($date);
+        $methods = $data['payment_methods'];
+
+        $pdf = $this->renderer->make('حاسبة الإيرادات اليومية', 'L', 'A4');
+
+        $pdf->metaRow(
+            'التاريخ: '.$this->date($date),
+            'تاريخ الطباعة: '.$this->dateTime(now()),
+            'المستخدم: '.($generatedBy ?? '—')
+        );
+        $pdf->spacing(3);
+
+        $cw = $pdf->contentWidth();
+        $labelWidth = $cw * 0.22;
+        $columnWidth = ($cw - $labelWidth) / (count($methods) + 1);
+        $widths = array_merge([$labelWidth], array_fill(0, count($methods) + 1, $columnWidth));
+
+        $headerColumns = [['label' => 'البيان', 'width' => $labelWidth]];
+        foreach ($methods as $method) {
+            $headerColumns[] = ['label' => $method, 'width' => $columnWidth];
+        }
+        $headerColumns[] = ['label' => 'الإجمالي', 'width' => $columnWidth];
+        $pdf->tableHeader($headerColumns);
+
+        foreach ($data['rows'] as $row) {
+            $cells = [$row['label']];
+            foreach ($methods as $method) {
+                $cells[] = $this->money($row['amounts'][$method] ?? 0);
+            }
+            $cells[] = $this->money($row['total']);
+            $pdf->tableRow($cells, $widths);
+        }
+
+        return $this->renderer->toResponse($pdf, "revenue-calculator-{$data['date']}.pdf");
     }
 
     /**

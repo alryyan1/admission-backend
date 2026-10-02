@@ -35,7 +35,7 @@ class AuthController extends Controller
 
         $deviceName = $request->input('device_name', $request->userAgent() ?? 'api');
 
-        $token = $user->createToken($deviceName, ['*'], now()->addMinutes(config('sanctum.token_ttl')))->plainTextToken;
+        $token = $user->createToken($deviceName, ['*'])->plainTextToken;
 
         activity()->causedBy($user)->log('تسجيل الدخول');
 

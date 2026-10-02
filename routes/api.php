@@ -8,7 +8,6 @@ use App\Http\Controllers\Api\AdmissionInvoiceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BackupController;
 use App\Http\Controllers\Api\BedController;
-use App\Http\Controllers\Api\CashierController;
 use App\Http\Controllers\Api\ChartOpeningServiceSettingController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\DoctorOrderController;
@@ -24,6 +23,7 @@ use App\Http\Controllers\Api\PdfController;
 use App\Http\Controllers\Api\ProcedureCategoryController;
 use App\Http\Controllers\Api\ProcedureController;
 use App\Http\Controllers\Api\RequestedServiceController;
+use App\Http\Controllers\Api\RevenueCalculatorController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\ServiceCategoryController;
 use App\Http\Controllers\Api\ServiceController;
@@ -147,10 +147,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/operations/{operation}/supplies', [OperationController::class, 'addSupply'])->middleware('role:admin,doctor,nurse');
     Route::delete('/operations/{operation}/supplies/{supply}', [OperationController::class, 'removeSupply'])->middleware('role:admin,doctor,nurse');
 
-    Route::get('/cashier/admissions', [CashierController::class, 'admissions'])->middleware('role:admin,cashier');
-
-    Route::get('/accountant/operation-patients', [AccountantController::class, 'operationPatients'])->middleware('role:admin,cashier');
-    Route::get('/accountant/team-members', [AccountantController::class, 'teamMembers'])->middleware('role:admin,cashier');
     Route::patch('/accountant/team-members/{teamMember}/entitlement', [AccountantController::class, 'updateEntitlement'])->middleware('role:admin,cashier');
 
     Route::get('/admissions/{admission}/invoice', [AdmissionInvoiceController::class, 'show']);
@@ -166,6 +162,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admissions/{admission}/summary.pdf', [PdfController::class, 'admissionSummary']);
     Route::get('/invoices/{invoice}/invoice.pdf', [PdfController::class, 'finalInvoice']);
     Route::get('/operations/{operation}/invoice.pdf', [PdfController::class, 'operationInvoice']);
+
+    Route::get('/reports/revenue-calculator', [RevenueCalculatorController::class, 'show']);
+    Route::get('/reports/revenue-calculator.pdf', [PdfController::class, 'revenueCalculator']);
 
     Route::get('/statistics/occupancy', [StatisticsController::class, 'occupancy']);
     Route::get('/statistics/admissions', [StatisticsController::class, 'admissions']);

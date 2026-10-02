@@ -200,10 +200,29 @@ class AdmissionTest extends TestCase
             'quantity' => 1,
             'unit_price' => 10000,
         ]);
+        Admission::find($admission['id'])->deposits()->create(['amount' => 4000, 'paid_at' => now()]);
 
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/admissions');
 
-        $response->assertOk()->assertJsonFragment(['id' => $admission['id'], 'balance_due' => 10000]);
+        $response->assertOk()->assertJsonFragment([
+            'id' => $admission['id'],
+            'total_charges' => 10000,
+            'paid_total' => 4000,
+            'balance_due' => 6000,
+        ]);
+    }
+
+    public function test_admissions_index_filters_by_admission_id(): void
+    {
+        $user = User::factory()->create();
+        $matching = Admission::factory()->create();
+        Admission::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')->getJson("/api/admissions?admission_id={$matching->id}");
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertSame([$matching->id], $ids);
     }
 
     public function test_admin_can_still_add_vital_signs_to_a_discharged_admission(): void

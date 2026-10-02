@@ -53,20 +53,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Token Time-To-Live
-    |--------------------------------------------------------------------------
-    |
-    | The number of minutes an issued token remains valid without activity.
-    | Each authenticated request extends the token's "expires_at" by this
-    | many minutes (see TouchTokenExpiration middleware), so it only expires
-    | after this long of genuine inactivity.
-    |
-    */
-
-    'token_ttl' => (int) env('SANCTUM_TOKEN_TTL', 480),
-
-    /*
-    |--------------------------------------------------------------------------
     | Token Prefix
     |--------------------------------------------------------------------------
     |
