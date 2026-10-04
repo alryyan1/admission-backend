@@ -41,6 +41,11 @@ class PdfController extends Controller
         return $this->documents->operationInvoice($operation);
     }
 
+    public function operationTeam(Operation $operation): Response
+    {
+        return $this->documents->operationTeam($operation);
+    }
+
     public function accountStatement(Admission $admission): Response
     {
         return $this->documents->accountStatement($admission);

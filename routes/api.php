@@ -162,6 +162,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admissions/{admission}/summary.pdf', [PdfController::class, 'admissionSummary']);
     Route::get('/invoices/{invoice}/invoice.pdf', [PdfController::class, 'finalInvoice']);
     Route::get('/operations/{operation}/invoice.pdf', [PdfController::class, 'operationInvoice']);
+    Route::get('/operations/{operation}/team.pdf', [PdfController::class, 'operationTeam']);
 
     Route::get('/reports/revenue-calculator', [RevenueCalculatorController::class, 'show']);
     Route::get('/reports/revenue-calculator.pdf', [PdfController::class, 'revenueCalculator']);

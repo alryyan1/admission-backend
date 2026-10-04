@@ -124,6 +124,51 @@ class PdfDocumentService
         );
     }
 
+    public function operationTeam(Operation $operation): Response
+    {
+        $operation->loadMissing('procedure', 'admission.patient', 'teamMembers.role', 'teamMembers.doctor', 'teamMembers.paymentMethod');
+
+        $pdf = $this->renderer->make('فريق العملية');
+
+        $pdf->metaRow(
+            'المريض: '.($operation->admission->patient?->name ?? '—'),
+            'العملية: '.($operation->procedure?->name_ar ?? ('#'.($operation->operation_number ?? $operation->id))),
+            'تاريخ الإصدار: '.$this->dateTime(now())
+        );
+        $pdf->spacing(3);
+
+        $cw = $pdf->contentWidth();
+        $widths = [$cw * 0.20, $cw * 0.28, $cw * 0.16, $cw * 0.18, $cw * 0.18];
+        $pdf->tableHeader([
+            ['label' => 'الدور', 'width' => $widths[0]],
+            ['label' => 'العضو', 'width' => $widths[1]],
+            ['label' => 'الاستحقاق', 'width' => $widths[2]],
+            ['label' => 'طريقة الدفع', 'width' => $widths[3]],
+            ['label' => 'تاريخ الدفع', 'width' => $widths[4]],
+        ]);
+
+        if ($operation->teamMembers->isEmpty()) {
+            $pdf->tableEmptyRow('لا يوجد أعضاء في الفريق');
+        }
+
+        foreach ($operation->teamMembers as $member) {
+            $pdf->tableRow([
+                $member->role?->name ?? '—',
+                $member->doctor?->name ?? $member->name ?? '—',
+                $member->entitlement_amount !== null ? $this->money($member->entitlement_amount) : '—',
+                $member->paymentMethod?->name ?? '—',
+                $member->entitlement_paid_at ? $this->date($member->entitlement_paid_at) : '—',
+            ], $widths);
+        }
+
+        $pdf->totalsBlock([
+            ['label' => 'سعر العملية', 'value' => $operation->price !== null ? $this->money($operation->price) : '—'],
+            ['label' => 'إجمالي الاستحقاقات', 'value' => $this->money(round((float) $operation->teamMembers->sum('entitlement_amount'), 2)), 'bold' => true],
+        ]);
+
+        return $this->renderer->toResponse($pdf, "operation-team-{$operation->id}.pdf");
+    }
+
     public function accountStatement(Admission $admission): Response
     {
         $admission->loadMissing('patient', 'requestedServices', 'deposits.paymentMethod', 'operations.procedure');

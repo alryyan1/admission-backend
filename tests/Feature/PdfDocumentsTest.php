@@ -120,6 +120,29 @@ class PdfDocumentsTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_operation_team_pdf(): void
+    {
+        $user = User::factory()->create();
+        $admission = Admission::factory()->create();
+        $operation = Operation::factory()->for($admission)->create(['price' => 50000]);
+        $operation->teamMembers()->create(['name' => 'جراح', 'entitlement_amount' => 20000]);
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get("/api/operations/{$operation->id}/team.pdf")
+        );
+    }
+
+    public function test_operation_team_pdf_without_members_or_price(): void
+    {
+        $user = User::factory()->create();
+        $admission = Admission::factory()->create();
+        $operation = Operation::factory()->for($admission)->create(['price' => null]);
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get("/api/operations/{$operation->id}/team.pdf")
+        );
+    }
+
     public function test_pdf_endpoints_require_authentication(): void
     {
         $admission = Admission::factory()->create();
