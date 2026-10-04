@@ -14,12 +14,10 @@ class ChartOpeningServiceSetting extends Model
     protected $fillable = [
         'service_id',
         'auto_add',
-        'apply_to_short_stay',
     ];
 
     protected $casts = [
         'auto_add' => 'boolean',
-        'apply_to_short_stay' => 'boolean',
     ];
 
     public function service(): BelongsTo

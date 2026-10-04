@@ -19,17 +19,11 @@ class Room extends Model
         'room_type',
         'capacity',
         'price_per_day',
-        'is_short_stay',
-        'price_12_hours',
-        'price_24_hours',
         'status',
     ];
 
     protected $casts = [
         'price_per_day' => 'decimal:2',
-        'is_short_stay' => 'boolean',
-        'price_12_hours' => 'decimal:2',
-        'price_24_hours' => 'decimal:2',
         'status' => 'boolean',
     ];
 

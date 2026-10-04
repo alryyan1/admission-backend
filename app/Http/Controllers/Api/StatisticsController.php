@@ -26,15 +26,7 @@ class StatisticsController extends Controller
         $maintenanceBeds = Bed::query()->where('status', 'maintenance')->count();
         $availableBeds = $totalBeds - $occupiedBeds - $maintenanceBeds;
 
-        $shortStayBeds = Bed::query()->whereHas('room', fn ($query) => $query->where('is_short_stay', true));
-        $shortStayTotalBeds = (clone $shortStayBeds)->count();
-        $shortStayOccupiedBeds = (clone $shortStayBeds)->where('status', 'occupied')->count();
-        $shortStayMaintenanceBeds = (clone $shortStayBeds)->where('status', 'maintenance')->count();
-        $availableShortStayBeds = $shortStayTotalBeds - $shortStayOccupiedBeds - $shortStayMaintenanceBeds;
-
         $availableRooms = Room::query()->whereHas('beds', fn ($query) => $query->where('status', 'available'))->count();
-        $shortStayRoomsTotal = Room::query()->where('is_short_stay', true)->count();
-        $regularRoomsTotal = Room::query()->where('is_short_stay', false)->count();
 
         $byWard = Bed::query()
             ->join('rooms', 'rooms.id', '=', 'beds.room_id')
@@ -53,10 +45,7 @@ class StatisticsController extends Controller
                 'total_beds' => $totalBeds,
                 'occupied_beds' => $occupiedBeds,
                 'available_beds' => $availableBeds,
-                'available_short_stay_beds' => $availableShortStayBeds,
                 'available_rooms' => $availableRooms,
-                'short_stay_rooms_total' => $shortStayRoomsTotal,
-                'regular_rooms_total' => $regularRoomsTotal,
                 'maintenance_beds' => $maintenanceBeds,
                 'occupancy_rate' => $totalBeds > 0 ? round($occupiedBeds / $totalBeds * 100, 1) : 0,
             ],
@@ -135,20 +124,13 @@ class StatisticsController extends Controller
             ->selectRaw('SUM(quantity * unit_price) as total')
             ->value('total') ?? 0);
 
-        $shortStayTotal = (float) (RequestedService::query()
-            ->whereHas('admission', fn ($query) => $query
-                ->whereBetween('admission_date', [$from, $to])
-                ->where('admission_type', 'short_stay'))
-            ->selectRaw('SUM(quantity * unit_price) as total')
-            ->value('total') ?? 0);
-
         $roomsTotal = (float) (RequestedService::query()
             ->where('name', RequestedService::AccommodationFeeName)
             ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
             ->selectRaw('SUM(quantity * unit_price) as total')
             ->value('total') ?? 0);
 
-        $servicesTotal = round($requestedServicesTotal - $shortStayTotal - $roomsTotal, 2);
+        $servicesTotal = round($requestedServicesTotal - $roomsTotal, 2);
 
         $operationsTotal = (float) Operation::query()
             ->whereNotNull('price')
@@ -164,10 +146,9 @@ class StatisticsController extends Controller
             'expenses_total' => $expensesTotal,
             'net_total' => $depositsTotal - $entitlementsTotal - $expensesTotal,
             'services_total' => $servicesTotal,
-            'short_stay_total' => $shortStayTotal,
             'rooms_total' => $roomsTotal,
             'operations_total' => $operationsTotal,
-            'charges_total' => round($servicesTotal + $shortStayTotal + $roomsTotal + $operationsTotal, 2),
+            'charges_total' => round($servicesTotal + $roomsTotal + $operationsTotal, 2),
             'daily_revenue' => $dailyRevenue,
             'deposits_by_method' => $depositsByMethod,
         ]);

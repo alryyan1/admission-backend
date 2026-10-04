@@ -27,9 +27,6 @@ class StoreRoomRequest extends FormRequest
             'capacity' => ['required', 'integer', 'min:0'],
             'auto_create_beds' => ['sometimes', 'boolean'],
             'price_per_day' => ['nullable', 'numeric', 'min:0'],
-            'is_short_stay' => ['sometimes', 'boolean'],
-            'price_12_hours' => ['nullable', 'numeric', 'min:0'],
-            'price_24_hours' => ['nullable', 'numeric', 'min:0'],
             'status' => ['sometimes', 'boolean'],
         ];
     }

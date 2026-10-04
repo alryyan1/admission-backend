@@ -80,10 +80,10 @@ class AdmissionInvoiceTest extends TestCase
         ]);
     }
 
-    public function test_invoice_ignores_room_and_short_stay_pricing(): void
+    public function test_invoice_ignores_room_pricing(): void
     {
         $user = User::factory()->create();
-        $room = Room::factory()->create(['is_short_stay' => true, 'price_12_hours' => null, 'price_24_hours' => null]);
+        $room = Room::factory()->create();
         $bed = Bed::factory()->create(['room_id' => $room->id]);
         $admission = Admission::factory()->create(['bed_id' => $bed->id]);
 

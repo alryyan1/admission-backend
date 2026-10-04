@@ -63,12 +63,6 @@ class RequestedServiceController extends Controller
 
         $room = $admission->bed->loadMissing('room')->room;
 
-        if ($room->is_short_stay) {
-            throw ValidationException::withMessages([
-                'room' => ['احتساب رسوم الإقامة متاح فقط لغرف الإقامة العادية (غير القصيرة).'],
-            ]);
-        }
-
         if (! $room->price_per_day) {
             throw ValidationException::withMessages([
                 'room' => ['لم يتم تحديد سعر اليوم لهذه الغرفة.'],

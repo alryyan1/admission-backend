@@ -24,7 +24,7 @@ class AishaBakhaitFacilitySeeder extends Seeder
                     [
                         'name' => 'الطوارئ - الاقامات القصيرة',
                         'rooms' => [
-                            ['room_number' => '1', 'room_type' => 'normal', 'capacity' => 11, 'is_short_stay' => true, 'beds_count' => 11],
+                            ['room_number' => '1', 'room_type' => 'normal', 'capacity' => 11, 'beds_count' => 11],
                         ],
                     ],
                 ],
@@ -131,9 +131,6 @@ class AishaBakhaitFacilitySeeder extends Seeder
                             'room_type' => $rc['room_type'],
                             'capacity' => $rc['capacity'],
                             'price_per_day' => $rc['price_per_day'] ?? null,
-                            'is_short_stay' => $rc['is_short_stay'] ?? false,
-                            'price_12_hours' => null,
-                            'price_24_hours' => null,
                             'status' => true,
                         ]
                     );

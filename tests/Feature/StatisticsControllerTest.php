@@ -61,9 +61,6 @@ class StatisticsControllerTest extends TestCase
         Operation::factory()->for($admission)->create(['price' => 40000]);
         Operation::factory()->for($admission)->create(['price' => null]);
 
-        $shortStayAdmission = Admission::factory()->create(['admission_type' => 'short_stay']);
-        RequestedService::factory()->for($shortStayAdmission)->create(['name' => 'إقامة قصيرة 12 ساعة', 'quantity' => 1, 'unit_price' => 8000]);
-
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/statistics/financials');
 
         $response->assertOk();
@@ -72,9 +69,8 @@ class StatisticsControllerTest extends TestCase
         $response->assertJsonPath('deposits_total', 3000);
         $response->assertJsonPath('services_total', 2000);
         $response->assertJsonPath('rooms_total', 15000);
-        $response->assertJsonPath('short_stay_total', 8000);
         $response->assertJsonPath('operations_total', 40000);
-        $response->assertJsonPath('charges_total', 65000);
+        $response->assertJsonPath('charges_total', 57000);
     }
 
     public function test_operations_statistics_report_count_and_revenue_in_range(): void

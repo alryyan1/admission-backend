@@ -53,18 +53,18 @@ class RequestedServiceControllerTest extends TestCase
         $this->assertDatabaseHas('services', ['id' => $service->id, 'name_ar' => 'رسوم الإقامة']);
     }
 
-    public function test_accommodation_fee_rejects_short_stay_rooms(): void
+    public function test_accommodation_fee_is_charged_for_a_room_with_a_daily_price_of_any_size(): void
     {
         $user = User::factory()->create();
-        $room = Room::factory()->create(['is_short_stay' => true, 'price_12_hours' => 30000]);
+        $room = Room::factory()->create(['price_per_day' => 30000]);
         $bed = Bed::factory()->create(['room_id' => $room->id]);
         $admission = Admission::factory()->create(['bed_id' => $bed->id]);
 
         $response = $this->actingAs($user, 'sanctum')
             ->postJson("/api/admissions/{$admission->id}/services/accommodation-fee");
 
-        $response->assertUnprocessable();
-        $this->assertDatabaseCount('requested_services', 0);
+        $response->assertCreated()->assertJsonPath('unit_price', '30000.00');
+        $this->assertDatabaseCount('requested_services', 1);
     }
 
     public function test_accommodation_fee_rejects_a_room_without_a_daily_price(): void

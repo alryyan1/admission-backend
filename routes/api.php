@@ -29,7 +29,6 @@ use App\Http\Controllers\Api\RoomTypeController;
 use App\Http\Controllers\Api\ServiceCategoryController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\SessionController;
-use App\Http\Controllers\Api\ShortStayServiceSettingController;
 use App\Http\Controllers\Api\SpecialistController;
 use App\Http\Controllers\Api\StatisticsController;
 use App\Http\Controllers\Api\TeamRoleController;
@@ -103,9 +102,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('/settings/chart-opening-service', [ChartOpeningServiceSettingController::class, 'show']);
         Route::put('/settings/chart-opening-service', [ChartOpeningServiceSettingController::class, 'update']);
-
-        Route::get('/settings/short-stay-service', [ShortStayServiceSettingController::class, 'show']);
-        Route::put('/settings/short-stay-service', [ShortStayServiceSettingController::class, 'update']);
 
         Route::get('/settings/facility', [FacilitySettingController::class, 'show']);
         Route::post('/settings/facility', [FacilitySettingController::class, 'update']);

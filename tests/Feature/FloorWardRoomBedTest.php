@@ -76,7 +76,7 @@ class FloorWardRoomBedTest extends TestCase
         $response->assertCreated()->assertJsonPath('status', 'available');
     }
 
-    public function test_short_stay_room_accepts_12_and_24_hour_prices(): void
+    public function test_room_ignores_removed_short_stay_fields(): void
     {
         $user = User::factory()->create();
         $ward = Ward::factory()->create();
@@ -87,15 +87,17 @@ class FloorWardRoomBedTest extends TestCase
             'room_number' => '1',
             'room_type' => 'normal',
             'capacity' => 11,
+            'price_per_day' => 80000,
             'is_short_stay' => true,
             'price_12_hours' => 80000,
             'price_24_hours' => 120000,
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('is_short_stay', true)
-            ->assertJsonPath('price_12_hours', '80000.00')
-            ->assertJsonPath('price_24_hours', '120000.00');
+            ->assertJsonPath('price_per_day', '80000.00')
+            ->assertJsonMissingPath('is_short_stay')
+            ->assertJsonMissingPath('price_12_hours')
+            ->assertJsonMissingPath('price_24_hours');
     }
 
     public function test_cannot_delete_a_bed_with_admission_history(): void

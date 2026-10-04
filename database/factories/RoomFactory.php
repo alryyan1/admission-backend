@@ -19,9 +19,6 @@ class RoomFactory extends Factory
             'room_type' => fake()->randomElement(['normal', 'vip']),
             'capacity' => fake()->numberBetween(1, 6),
             'price_per_day' => fake()->randomElement([50000, 100000, 150000]),
-            'is_short_stay' => false,
-            'price_12_hours' => null,
-            'price_24_hours' => null,
             'status' => true,
         ];
     }

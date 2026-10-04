@@ -55,10 +55,10 @@ class AdmissionCancellationTest extends TestCase
         $nextDay->assertJsonPath('admission_number', '1');
     }
 
-    public function test_admitting_to_a_short_stay_bed_sets_short_stay_admission_type(): void
+    public function test_admitting_to_any_bed_sets_inpatient_admission_type(): void
     {
         $user = User::factory()->create();
-        $room = Room::factory()->create(['is_short_stay' => true]);
+        $room = Room::factory()->create();
         $bed = Bed::factory()->create(['room_id' => $room->id, 'status' => 'available']);
 
         $response = $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [
@@ -66,7 +66,7 @@ class AdmissionCancellationTest extends TestCase
             'bed_id' => $bed->id,
         ]);
 
-        $response->assertCreated()->assertJsonPath('admission_type', 'short_stay');
+        $response->assertCreated()->assertJsonPath('admission_type', 'inpatient');
     }
 
     public function test_cancelling_an_admission_frees_the_bed(): void

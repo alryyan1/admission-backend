@@ -30,10 +30,10 @@ class AdmissionService
             $admission = Admission::create([
                 ...$data,
                 'admitted_by' => $user->id,
-                'admission_type' => $bed->room->is_short_stay ? 'short_stay' : 'inpatient',
+                'admission_type' => 'inpatient',
             ]);
 
-            $this->addChartOpeningService($admission, $bed->room->is_short_stay);
+            $this->addChartOpeningService($admission);
 
             return $admission;
         });
@@ -43,15 +43,11 @@ class AdmissionService
         return $admission;
     }
 
-    private function addChartOpeningService(Admission $admission, bool $isShortStay): void
+    private function addChartOpeningService(Admission $admission): void
     {
         $setting = ChartOpeningServiceSetting::current()->load('service');
 
         if (! $setting->auto_add || ! $setting->service) {
-            return;
-        }
-
-        if ($isShortStay && ! $setting->apply_to_short_stay) {
             return;
         }
 

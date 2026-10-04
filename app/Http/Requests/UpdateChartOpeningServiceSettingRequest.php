@@ -19,7 +19,6 @@ class UpdateChartOpeningServiceSettingRequest extends FormRequest
         return [
             'service_id' => ['nullable', 'exists:services,id'],
             'auto_add' => ['required', 'boolean'],
-            'apply_to_short_stay' => ['required', 'boolean'],
         ];
     }
 }
