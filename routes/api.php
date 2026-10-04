@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PdfController;
 use App\Http\Controllers\Api\ProcedureCategoryController;
 use App\Http\Controllers\Api\ProcedureController;
+use App\Http\Controllers\Api\InsuranceCompanyController;
 use App\Http\Controllers\Api\RequestedServiceController;
 use App\Http\Controllers\Api\RevenueCalculatorController;
 use App\Http\Controllers\Api\RoomController;
@@ -79,6 +80,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('specialists', SpecialistController::class)->only(['index']);
     Route::apiResource('specialists', SpecialistController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
+
+    Route::apiResource('insurance-companies', InsuranceCompanyController::class)->only(['index']);
+    Route::apiResource('insurance-companies', InsuranceCompanyController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
 
     Route::apiResource('users', UserController::class)->only(['index', 'store', 'update', 'destroy'])->middleware('role:admin');
 
