@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\ProcedureController;
 use App\Http\Controllers\Api\RequestedServiceController;
 use App\Http\Controllers\Api\RevenueCalculatorController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\RoomTypeController;
 use App\Http\Controllers\Api\ServiceCategoryController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\SessionController;
@@ -55,6 +56,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('wards', WardController::class)->only(['index', 'show']);
     Route::apiResource('wards', WardController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
+
+    Route::apiResource('room-types', RoomTypeController::class)->only(['index']);
+    Route::apiResource('room-types', RoomTypeController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
 
     Route::apiResource('rooms', RoomController::class)->only(['index', 'show']);
     Route::apiResource('rooms', RoomController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');

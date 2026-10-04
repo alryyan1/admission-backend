@@ -6,6 +6,7 @@ use App\Models\Admission;
 use App\Models\Bed;
 use App\Models\Floor;
 use App\Models\Room;
+use App\Models\RoomType;
 use App\Models\User;
 use App\Models\Ward;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,6 +49,7 @@ class FloorWardRoomBedTest extends TestCase
     {
         $user = User::factory()->create();
         $ward = Ward::factory()->create();
+        RoomType::factory()->create(['code' => 'normal']);
         Room::factory()->create(['ward_id' => $ward->id, 'room_number' => '1']);
 
         $response = $this->actingAs($user, 'sanctum')->postJson('/api/rooms', [
@@ -78,6 +80,7 @@ class FloorWardRoomBedTest extends TestCase
     {
         $user = User::factory()->create();
         $ward = Ward::factory()->create();
+        RoomType::factory()->create(['code' => 'normal']);
 
         $response = $this->actingAs($user, 'sanctum')->postJson('/api/rooms', [
             'ward_id' => $ward->id,
@@ -119,5 +122,79 @@ class FloorWardRoomBedTest extends TestCase
 
         $response->assertUnprocessable();
         $this->assertDatabaseHas('beds', ['id' => $bed->id, 'status' => 'occupied']);
+    }
+
+    public function test_creating_room_with_auto_create_beds_makes_numbered_beds_equal_to_capacity(): void
+    {
+        $user = User::factory()->create();
+        $ward = Ward::factory()->create();
+        RoomType::factory()->create(['code' => 'normal']);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/rooms', [
+            'ward_id' => $ward->id,
+            'room_number' => '101',
+            'room_type' => 'normal',
+            'capacity' => 3,
+            'auto_create_beds' => true,
+        ]);
+
+        $response->assertCreated()->assertJsonPath('capacity', 3);
+        $room = Room::query()->findOrFail($response->json('id'));
+        $this->assertSame(['1', '2', '3'], $room->beds->pluck('bed_number')->all());
+        $this->assertTrue($room->beds->every(fn (Bed $bed): bool => $bed->unit_type === 'bed' && $bed->status === 'available'));
+    }
+
+    public function test_creating_room_without_auto_create_beds_creates_no_beds(): void
+    {
+        $user = User::factory()->create();
+        $ward = Ward::factory()->create();
+        RoomType::factory()->create(['code' => 'normal']);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/rooms', [
+            'ward_id' => $ward->id,
+            'room_number' => '102',
+            'room_type' => 'normal',
+            'capacity' => 3,
+            'auto_create_beds' => false,
+        ]);
+
+        $response->assertCreated();
+        $this->assertDatabaseCount('beds', 0);
+    }
+
+    public function test_auto_create_beds_with_zero_capacity_creates_no_beds(): void
+    {
+        $user = User::factory()->create();
+        $ward = Ward::factory()->create();
+        RoomType::factory()->create(['code' => 'normal']);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/rooms', [
+            'ward_id' => $ward->id,
+            'room_number' => '103',
+            'room_type' => 'normal',
+            'capacity' => 0,
+            'auto_create_beds' => true,
+        ]);
+
+        $response->assertCreated();
+        $this->assertDatabaseCount('beds', 0);
+    }
+
+    public function test_auto_create_beds_must_be_boolean(): void
+    {
+        $user = User::factory()->create();
+        $ward = Ward::factory()->create();
+        RoomType::factory()->create(['code' => 'normal']);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson('/api/rooms', [
+            'ward_id' => $ward->id,
+            'room_number' => '104',
+            'room_type' => 'normal',
+            'capacity' => 2,
+            'auto_create_beds' => 'maybe',
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors('auto_create_beds');
+        $this->assertDatabaseCount('rooms', 0);
     }
 }

@@ -9,6 +9,8 @@ use App\Models\Room;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class RoomController extends Controller
 {
@@ -29,9 +31,31 @@ class RoomController extends Controller
 
     public function store(StoreRoomRequest $request): JsonResponse
     {
-        $room = Room::create($request->validated());
+        $roomData = $request->safe()->except('auto_create_beds');
+
+        $room = DB::transaction(function () use ($request, $roomData): Room {
+            $room = Room::query()->create($roomData);
+
+            if ($request->boolean('auto_create_beds')) {
+                $room->beds()->createMany($this->buildDefaultBeds($room->capacity));
+            }
+
+            return $room;
+        });
 
         return response()->json($room, Response::HTTP_CREATED);
+    }
+
+    /**
+     * @return list<array{bed_number: string, unit_type: string, status: string}>
+     */
+    private function buildDefaultBeds(int $bedCount): array
+    {
+        return Collection::times($bedCount, fn (int $bedNumber): array => [
+            'bed_number' => (string) $bedNumber,
+            'unit_type' => 'bed',
+            'status' => 'available',
+        ])->values()->all();
     }
 
     public function show(Room $room): JsonResponse
