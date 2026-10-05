@@ -28,7 +28,7 @@ class AdmissionController extends Controller
     private function showRelations(): array
     {
         return [
-            'patient',
+            'patient.insuranceCompany',
             'bed.room.ward.floor',
             'admittedBy',
             'dischargedBy',
@@ -52,7 +52,7 @@ class AdmissionController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Admission::with([
-            'patient', 'bed.room.ward.floor', 'admittingDoctor', 'referredByDoctor',
+            'patient.insuranceCompany', 'bed.room.ward.floor', 'admittingDoctor', 'referredByDoctor',
             'requestedServices', 'operations.procedure', 'deposits',
         ])->withCount('operations');
 

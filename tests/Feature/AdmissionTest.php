@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Admission;
 use App\Models\Bed;
 use App\Models\Doctor;
+use App\Models\InsuranceCompany;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -210,6 +211,36 @@ class AdmissionTest extends TestCase
             'paid_total' => 4000,
             'balance_due' => 6000,
         ]);
+    }
+
+    public function test_admission_show_includes_the_patient_insurance_company(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'insurance_company_id' => InsuranceCompany::factory()->create(['name' => 'التعاونية'])->id,
+        ]);
+        $admission = Admission::factory()->create(['patient_id' => $patient->id]);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson("/api/admissions/{$admission->id}");
+
+        $response->assertOk()->assertJsonPath('patient.insurance_company.name', 'التعاونية');
+    }
+
+    public function test_admissions_index_includes_the_patient_insurance_company(): void
+    {
+        $user = User::factory()->create();
+        $insuredPatient = Patient::factory()->create([
+            'insurance_company_id' => InsuranceCompany::factory()->create(['name' => 'بوبا'])->id,
+        ]);
+        $uninsuredPatient = Patient::factory()->create(['insurance_company_id' => null]);
+        Admission::factory()->create(['patient_id' => $insuredPatient->id]);
+        Admission::factory()->create(['patient_id' => $uninsuredPatient->id]);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/admissions');
+
+        $response->assertOk()
+            ->assertJsonFragment(['name' => 'بوبا'])
+            ->assertJsonFragment(['insurance_company' => null]);
     }
 
     public function test_admissions_index_filters_by_admission_id(): void
