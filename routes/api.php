@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BackupController;
 use App\Http\Controllers\Api\BedController;
 use App\Http\Controllers\Api\ChartOpeningServiceSettingController;
+use App\Http\Controllers\Api\DailyRevenueReportController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\DoctorOrderController;
 use App\Http\Controllers\Api\ExpenseController;
@@ -171,6 +172,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/reports/revenue-calculator', [RevenueCalculatorController::class, 'show']);
     Route::get('/reports/revenue-calculator.pdf', [PdfController::class, 'revenueCalculator']);
+    Route::get('/reports/daily-revenue', [DailyRevenueReportController::class, 'index'])->middleware('role:admin,cashier');
     Route::get('/reports/payments', [PaymentsReportController::class, 'index'])->middleware('role:admin,cashier');
     Route::get('/reports/payments/recorders', [PaymentsReportController::class, 'recorders'])->middleware('role:admin,cashier');
     Route::get('/reports/payments.pdf', [PdfController::class, 'paymentsReport'])->middleware('role:admin,cashier');

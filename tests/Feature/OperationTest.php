@@ -5,7 +5,10 @@ namespace Tests\Feature;
 use App\Models\Admission;
 use App\Models\Doctor;
 use App\Models\Operation;
+use App\Models\OperationSupply;
+use App\Models\OperationTeamMember;
 use App\Models\Procedure;
+use App\Models\TeamRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -127,5 +130,102 @@ class OperationTest extends TestCase
 
         $response->assertOk();
         $this->assertCount(1, $response->json('data'));
+    }
+
+    public function test_doctor_cannot_schedule_an_operation_on_a_cancelled_admission(): void
+    {
+        $doctor = User::factory()->role('doctor')->create();
+        $admission = Admission::factory()->create(['status' => 'cancelled']);
+
+        $response = $this->actingAs($doctor, 'sanctum')->postJson("/api/admissions/{$admission->id}/operations", [
+            'surgeon_id' => Doctor::factory()->create()->id,
+            'procedure_id' => Procedure::factory()->create()->id,
+            'scheduled_at' => now()->addDay()->toIso8601String(),
+        ]);
+
+        $response->assertUnprocessable();
+        $this->assertDatabaseMissing('operations', ['admission_id' => $admission->id]);
+    }
+
+    public function test_doctor_cannot_update_an_operation_on_a_cancelled_admission(): void
+    {
+        $doctor = User::factory()->role('doctor')->create();
+        $operation = Operation::factory()->create([
+            'admission_id' => Admission::factory()->create(['status' => 'cancelled'])->id,
+        ]);
+        $originalProcedureId = $operation->procedure_id;
+
+        $response = $this->actingAs($doctor, 'sanctum')
+            ->patchJson("/api/operations/{$operation->id}", ['procedure_id' => Procedure::factory()->create()->id]);
+
+        $response->assertUnprocessable();
+        $this->assertDatabaseHas('operations', ['id' => $operation->id, 'procedure_id' => $originalProcedureId]);
+    }
+
+    public function test_doctor_cannot_add_a_team_member_to_an_operation_on_a_cancelled_admission(): void
+    {
+        $doctor = User::factory()->role('doctor')->create();
+        $operation = Operation::factory()->create([
+            'admission_id' => Admission::factory()->create(['status' => 'cancelled'])->id,
+        ]);
+
+        $response = $this->actingAs($doctor, 'sanctum')
+            ->postJson("/api/operations/{$operation->id}/team-members", [
+                'name' => 'Team member',
+                'role_id' => TeamRole::factory()->create()->id,
+            ]);
+
+        $response->assertUnprocessable();
+        $this->assertDatabaseCount('operation_team_members', 0);
+    }
+
+    public function test_doctor_cannot_remove_a_team_member_from_an_operation_on_a_cancelled_admission(): void
+    {
+        $doctor = User::factory()->role('doctor')->create();
+        $operation = Operation::factory()->create([
+            'admission_id' => Admission::factory()->create(['status' => 'cancelled'])->id,
+        ]);
+        $teamMember = OperationTeamMember::factory()->create(['operation_id' => $operation->id]);
+
+        $response = $this->actingAs($doctor, 'sanctum')
+            ->deleteJson("/api/operations/{$operation->id}/team-members/{$teamMember->id}");
+
+        $response->assertUnprocessable();
+        $this->assertDatabaseHas('operation_team_members', ['id' => $teamMember->id]);
+    }
+
+    public function test_nurse_cannot_add_or_remove_supplies_on_a_cancelled_admission(): void
+    {
+        $nurse = User::factory()->role('nurse')->create();
+        $operation = Operation::factory()->create([
+            'admission_id' => Admission::factory()->create(['status' => 'cancelled'])->id,
+        ]);
+        $supply = OperationSupply::factory()->create(['operation_id' => $operation->id]);
+
+        $this->actingAs($nurse, 'sanctum')
+            ->postJson("/api/operations/{$operation->id}/supplies", ['name' => 'Gauze'])
+            ->assertUnprocessable();
+
+        $this->actingAs($nurse, 'sanctum')
+            ->deleteJson("/api/operations/{$operation->id}/supplies/{$supply->id}")
+            ->assertUnprocessable();
+
+        $this->assertDatabaseCount('operation_supplies', 1);
+        $this->assertDatabaseHas('operation_supplies', ['id' => $supply->id]);
+    }
+
+    public function test_admin_can_update_an_operation_on_a_cancelled_admission(): void
+    {
+        $admin = User::factory()->role('admin')->create();
+        $operation = Operation::factory()->create([
+            'admission_id' => Admission::factory()->create(['status' => 'cancelled'])->id,
+        ]);
+        $newProcedure = Procedure::factory()->create();
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/operations/{$operation->id}", ['procedure_id' => $newProcedure->id]);
+
+        $response->assertOk();
+        $this->assertDatabaseHas('operations', ['id' => $operation->id, 'procedure_id' => $newProcedure->id]);
     }
 }

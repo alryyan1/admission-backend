@@ -98,6 +98,8 @@ class OperationController extends Controller
 
     public function update(UpdateOperationRequest $request, Operation $operation): JsonResponse
     {
+        $operation->admission->assertMutable($request->user());
+
         $operation = $this->operationService->update($operation, $request->validated());
         $this->loadOperation($operation);
 
@@ -106,15 +108,19 @@ class OperationController extends Controller
 
     public function addTeamMember(StoreOperationTeamMemberRequest $request, Operation $operation): JsonResponse
     {
+        $operation->admission->assertMutable($request->user());
+
         $member = $operation->teamMembers()->create($request->validated());
         $member->load(['doctor', 'role']);
 
         return response()->json($member, Response::HTTP_CREATED);
     }
 
-    public function removeTeamMember(Operation $operation, OperationTeamMember $teamMember): JsonResponse
+    public function removeTeamMember(Request $request, Operation $operation, OperationTeamMember $teamMember): JsonResponse
     {
         abort_unless($teamMember->operation_id === $operation->id, Response::HTTP_NOT_FOUND);
+
+        $operation->admission->assertMutable($request->user());
 
         $teamMember->delete();
 
@@ -123,14 +129,18 @@ class OperationController extends Controller
 
     public function addSupply(StoreOperationSupplyRequest $request, Operation $operation): JsonResponse
     {
+        $operation->admission->assertMutable($request->user());
+
         $supply = $operation->supplies()->create($request->validated());
 
         return response()->json($supply, Response::HTTP_CREATED);
     }
 
-    public function removeSupply(Operation $operation, OperationSupply $supply): JsonResponse
+    public function removeSupply(Request $request, Operation $operation, OperationSupply $supply): JsonResponse
     {
         abort_unless($supply->operation_id === $operation->id, Response::HTTP_NOT_FOUND);
+
+        $operation->admission->assertMutable($request->user());
 
         $supply->delete();
 
