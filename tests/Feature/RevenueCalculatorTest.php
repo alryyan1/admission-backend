@@ -87,6 +87,59 @@ class RevenueCalculatorTest extends TestCase
         $this->assertStringStartsWith('%PDF-', $response->getContent());
     }
 
+    public function test_revenue_calculator_filters_revenue_and_expenses_by_user(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $cash = PaymentMethod::factory()->create(['name' => 'نقدي']);
+
+        AdmissionDeposit::factory()->create(['payment_method_id' => $cash->id, 'amount' => 1000, 'paid_by' => $user->id, 'paid_at' => now()]);
+        AdmissionDeposit::factory()->create(['payment_method_id' => $cash->id, 'amount' => 5000, 'paid_by' => $otherUser->id, 'paid_at' => now()]);
+
+        Expense::query()->create(['payment_method_id' => $cash->id, 'amount' => 200, 'category' => 'صيانة', 'description' => 'صيانة', 'expense_date' => now(), 'recorded_by_id' => $user->id]);
+        Expense::query()->create(['payment_method_id' => $cash->id, 'amount' => 700, 'category' => 'صيانة', 'description' => 'صيانة', 'expense_date' => now(), 'recorded_by_id' => $otherUser->id]);
+
+        $operation = Operation::factory()->create();
+        $operation->teamMembers()->create(['payment_method_id' => $cash->id, 'entitlement_amount' => 150, 'entitlement_paid_at' => now()]);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson("/api/reports/revenue-calculator?user_id={$user->id}");
+
+        $response->assertOk();
+        $rowsByLabel = collect($response->json('rows'))->keyBy('label');
+
+        $this->assertEquals(1000.0, $rowsByLabel['الإيرادات']['total']);
+        $this->assertEquals(200.0, $rowsByLabel['المصروفات']['total']);
+        $this->assertEquals(0.0, $rowsByLabel['استحقاقات العميلة']['total']);
+        $this->assertEquals(800.0, $rowsByLabel['الصافي']['total']);
+    }
+
+    public function test_revenue_calculator_without_user_filter_includes_everyone(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $cash = PaymentMethod::factory()->create(['name' => 'نقدي']);
+
+        AdmissionDeposit::factory()->create(['payment_method_id' => $cash->id, 'amount' => 1000, 'paid_by' => $user->id, 'paid_at' => now()]);
+        AdmissionDeposit::factory()->create(['payment_method_id' => $cash->id, 'amount' => 5000, 'paid_by' => $otherUser->id, 'paid_at' => now()]);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/reports/revenue-calculator');
+
+        $rowsByLabel = collect($response->json('rows'))->keyBy('label');
+        $this->assertEquals(6000.0, $rowsByLabel['الإيرادات']['total']);
+    }
+
+    public function test_revenue_calculator_pdf_renders_for_selected_user(): void
+    {
+        $user = User::factory()->create(['name' => 'كاشير']);
+        PaymentMethod::factory()->create(['name' => 'نقدي']);
+
+        $response = $this->actingAs($user, 'sanctum')->get("/api/reports/revenue-calculator.pdf?user_id={$user->id}");
+
+        $response->assertOk();
+        $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
+        $this->assertStringStartsWith('%PDF-', $response->getContent());
+    }
+
     public function test_revenue_calculator_requires_authentication(): void
     {
         $this->getJson('/api/reports/revenue-calculator')->assertUnauthorized();

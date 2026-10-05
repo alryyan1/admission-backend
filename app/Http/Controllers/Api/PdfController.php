@@ -7,6 +7,7 @@ use App\Models\Admission;
 use App\Models\AdmissionDeposit;
 use App\Models\Invoice;
 use App\Models\Operation;
+use App\Models\User;
 use App\Services\PdfDocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -60,7 +61,10 @@ class PdfController extends Controller
     {
         $date = $request->filled('date') ? Carbon::parse($request->query('date')) : now();
 
-        return $this->documents->revenueCalculator($date, $request->user()?->name);
+        $userId = $request->filled('user_id') ? $request->integer('user_id') : null;
+        $userName = $userId !== null ? User::query()->whereKey($userId)->value('name') : null;
+
+        return $this->documents->revenueCalculator($date, $request->user()?->name, $userId, $userName);
     }
 
     public function paymentsReport(Request $request): Response
@@ -68,6 +72,8 @@ class PdfController extends Controller
         $from = $request->filled('from') ? Carbon::parse($request->query('from')) : now()->subDays(29);
         $to = $request->filled('to') ? Carbon::parse($request->query('to')) : now();
 
-        return $this->documents->paymentsReport($from->startOfDay(), $to->endOfDay(), $request->user()?->name);
+        $paidByUserId = $request->filled('paid_by_user_id') ? $request->integer('paid_by_user_id') : null;
+
+        return $this->documents->paymentsReport($from->startOfDay(), $to->endOfDay(), $request->user()?->name, $paidByUserId);
     }
 }

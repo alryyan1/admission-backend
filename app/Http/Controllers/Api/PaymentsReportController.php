@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdmissionDeposit;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -40,6 +41,13 @@ class PaymentsReportController extends Controller
         ]);
     }
 
+    public function recorders(): JsonResponse
+    {
+        return response()->json(
+            User::query()->orderBy('name')->get(['id', 'name'])
+        );
+    }
+
     /**
      * @return Collection<int, array{method: string, count: int, total: float}>
      */
@@ -61,6 +69,10 @@ class PaymentsReportController extends Controller
 
         if ($request->filled('payment_method_id')) {
             $query->where('payment_method_id', $request->integer('payment_method_id'));
+        }
+
+        if ($request->filled('paid_by_user_id')) {
+            $query->where('paid_by', $request->integer('paid_by_user_id'));
         }
 
         if ($request->filled('search')) {

@@ -15,9 +15,10 @@ class RevenueCalculatorController extends Controller
     public function show(Request $request): JsonResponse
     {
         $date = $request->filled('date') ? Carbon::parse($request->query('date')) : now();
+        $userId = $request->filled('user_id') ? $request->integer('user_id') : null;
 
         return response()->json([
-            ...$this->calculator->calculate($date),
+            ...$this->calculator->calculate($date, $userId),
             'generated_by' => $request->user()?->name,
             'generated_at' => now()->toIso8601String(),
         ]);

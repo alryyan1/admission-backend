@@ -12,13 +12,15 @@ use Illuminate\Support\Collection;
 class RevenueCalculatorService
 {
     /**
+     * Entitlements have no recording user, so they are excluded (zero) when filtering by user.
+     *
      * @return array{
      *     date: string,
      *     payment_methods: array<int, string>,
      *     rows: array<int, array{label: string, amounts: array<string, float>, total: float}>,
      * }
      */
-    public function calculate(Carbon $date): array
+    public function calculate(Carbon $date, ?int $userId = null): array
     {
         $start = $date->copy()->startOfDay();
         $end = $date->copy()->endOfDay();
@@ -28,6 +30,7 @@ class RevenueCalculatorService
         $revenueByMethod = AdmissionDeposit::query()
             ->join('payment_methods', 'payment_methods.id', '=', 'admission_deposits.payment_method_id')
             ->whereBetween('admission_deposits.paid_at', [$start, $end])
+            ->when($userId !== null, fn ($query) => $query->where('admission_deposits.paid_by', $userId))
             ->selectRaw('payment_methods.name as method, SUM(admission_deposits.amount) as total')
             ->groupBy('payment_methods.name')
             ->pluck('total', 'method');
@@ -35,16 +38,20 @@ class RevenueCalculatorService
         $expensesByMethod = Expense::query()
             ->join('payment_methods', 'payment_methods.id', '=', 'expenses.payment_method_id')
             ->whereBetween('expenses.expense_date', [$start, $end])
+            ->when($userId !== null, fn ($query) => $query->where('expenses.recorded_by_id', $userId))
             ->selectRaw('payment_methods.name as method, SUM(expenses.amount) as total')
             ->groupBy('payment_methods.name')
             ->pluck('total', 'method');
 
-        $entitlementsByMethod = OperationTeamMember::query()
-            ->join('payment_methods', 'payment_methods.id', '=', 'operation_team_members.payment_method_id')
-            ->whereBetween('operation_team_members.entitlement_paid_at', [$start, $end])
-            ->selectRaw('payment_methods.name as method, SUM(operation_team_members.entitlement_amount) as total')
-            ->groupBy('payment_methods.name')
-            ->pluck('total', 'method');
+        $entitlementsByMethod = collect();
+        if ($userId === null) {
+            $entitlementsByMethod = OperationTeamMember::query()
+                ->join('payment_methods', 'payment_methods.id', '=', 'operation_team_members.payment_method_id')
+                ->whereBetween('operation_team_members.entitlement_paid_at', [$start, $end])
+                ->selectRaw('payment_methods.name as method, SUM(operation_team_members.entitlement_amount) as total')
+                ->groupBy('payment_methods.name')
+                ->pluck('total', 'method');
+        }
 
         $revenueRow = $this->buildRow('الإيرادات', $paymentMethods, $revenueByMethod);
         $expensesRow = $this->buildRow('المصروفات', $paymentMethods, $expensesByMethod);

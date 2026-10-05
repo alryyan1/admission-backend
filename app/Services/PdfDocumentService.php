@@ -448,9 +448,9 @@ class PdfDocumentService
         return $this->renderer->toResponse($pdf, "admission-summary-{$admission->id}.pdf", false);
     }
 
-    public function revenueCalculator(Carbon $date, ?string $generatedBy): Response
+    public function revenueCalculator(Carbon $date, ?string $generatedBy, ?int $userId = null, ?string $userName = null): Response
     {
-        $data = $this->calculator->calculate($date);
+        $data = $this->calculator->calculate($date, $userId);
         $methods = $data['payment_methods'];
 
         $pdf = $this->renderer->make('حاسبة الإيرادات اليومية', 'L', 'A4');
@@ -460,6 +460,7 @@ class PdfDocumentService
             'تاريخ الطباعة: '.$this->dateTime(now()),
             'المستخدم: '.($generatedBy ?? '—')
         );
+        $pdf->metaRow('', 'المستلم: '.($userId !== null ? ($userName ?? '—') : 'الكل'), '');
         $pdf->spacing(3);
 
         $cw = $pdf->contentWidth();
@@ -486,11 +487,12 @@ class PdfDocumentService
         return $this->renderer->toResponse($pdf, "revenue-calculator-{$data['date']}.pdf");
     }
 
-    public function paymentsReport(Carbon $from, Carbon $to, ?string $generatedBy): Response
+    public function paymentsReport(Carbon $from, Carbon $to, ?string $generatedBy, ?int $paidByUserId = null): Response
     {
         $payments = AdmissionDeposit::query()
             ->with(['admission.patient', 'paymentMethod'])
             ->whereBetween('paid_at', [$from, $to])
+            ->when($paidByUserId !== null, fn ($query) => $query->where('paid_by', $paidByUserId))
             ->orderBy('paid_at')
             ->get();
 

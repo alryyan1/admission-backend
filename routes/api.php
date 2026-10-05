@@ -172,6 +172,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/revenue-calculator', [RevenueCalculatorController::class, 'show']);
     Route::get('/reports/revenue-calculator.pdf', [PdfController::class, 'revenueCalculator']);
     Route::get('/reports/payments', [PaymentsReportController::class, 'index'])->middleware('role:admin,cashier');
+    Route::get('/reports/payments/recorders', [PaymentsReportController::class, 'recorders'])->middleware('role:admin,cashier');
     Route::get('/reports/payments.pdf', [PdfController::class, 'paymentsReport'])->middleware('role:admin,cashier');
 
     Route::get('/statistics/occupancy', [StatisticsController::class, 'occupancy']);
