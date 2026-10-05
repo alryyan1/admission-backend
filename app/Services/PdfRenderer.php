@@ -37,6 +37,8 @@ class PdfRenderer
         return new Response($pdf->Output('document.pdf', 'S'), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'no-store, must-revalidate',
+            'Pragma' => 'no-cache',
         ]);
     }
 }

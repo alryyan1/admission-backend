@@ -63,6 +63,52 @@ class PdfDocumentsTest extends TestCase
         );
     }
 
+    public function test_deposit_receipt_pdf_embeds_the_facility_logo_regardless_of_working_directory(): void
+    {
+        // TCPDF's file-access sandbox trusts local image reads under
+        // getcwd() among other candidates. A CLI process's cwd is usually
+        // the project root (which happens to cover storage/app/public), but
+        // a real web server's isn't — this reproduces that by changing cwd
+        // to something that doesn't cover the storage path at all.
+        $originalCwd = getcwd();
+        chdir(sys_get_temp_dir());
+
+        try {
+            Storage::fake('public');
+            $image = imagecreatetruecolor(150, 150);
+            for ($x = 0; $x < 150; $x++) {
+                for ($y = 0; $y < 150; $y++) {
+                    imagesetpixel($image, $x, $y, imagecolorallocate($image, random_int(0, 255), random_int(0, 255), random_int(0, 255)));
+                }
+            }
+            ob_start();
+            imagepng($image, null, 0);
+            $png = ob_get_clean();
+            imagedestroy($image);
+            Storage::disk('public')->put('facility/logo.png', $png);
+            FacilitySetting::current()->update(['logo_path' => 'facility/logo.png', 'use_logo' => true]);
+
+            $user = User::factory()->create();
+            $admission = Admission::factory()->create();
+            $deposit = $admission->deposits()->create(['amount' => 2000, 'paid_at' => now()]);
+
+            $withLogo = $this->actingAs($user, 'sanctum')
+                ->get("/api/admissions/{$admission->id}/deposits/{$deposit->id}/receipt.pdf");
+            $this->assertPdf($withLogo);
+
+            FacilitySetting::current()->update(['use_logo' => false]);
+            $withoutLogo = $this->actingAs($user, 'sanctum')
+                ->get("/api/admissions/{$admission->id}/deposits/{$deposit->id}/receipt.pdf");
+            $this->assertPdf($withoutLogo);
+
+            // An embedded logo meaningfully grows the PDF; this fails if the
+            // image was silently skipped by the file-access sandbox.
+            $this->assertGreaterThan(strlen($withoutLogo->getContent()) + 5000, strlen($withLogo->getContent()));
+        } finally {
+            chdir($originalCwd);
+        }
+    }
+
     public function test_deposit_receipt_rejects_mismatched_admission(): void
     {
         $user = User::factory()->create();
