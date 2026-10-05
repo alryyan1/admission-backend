@@ -88,6 +88,61 @@ class DoctorControllerTest extends TestCase
         $response->assertOk()->assertJsonCount(1)->assertJsonPath('0.name', 'د. ممرضة');
     }
 
+    public function test_admin_can_create_a_doctor_with_a_phone_number(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $role = TeamRole::factory()->create();
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/doctors', [
+            'name' => 'د. سارة علي',
+            'phone' => '0555123456',
+            'role_id' => $role->id,
+        ]);
+
+        $response->assertCreated()->assertJsonPath('phone', '0555123456');
+        $this->assertDatabaseHas('doctors', ['name' => 'د. سارة علي', 'phone' => '0555123456']);
+    }
+
+    public function test_doctor_phone_is_optional(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $role = TeamRole::factory()->create();
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/doctors', [
+            'name' => 'د. سارة علي',
+            'role_id' => $role->id,
+        ]);
+
+        $response->assertCreated()->assertJsonPath('phone', null);
+    }
+
+    public function test_doctor_phone_cannot_exceed_fifty_characters(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $role = TeamRole::factory()->create();
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/doctors', [
+            'name' => 'د. سارة علي',
+            'phone' => str_repeat('9', 51),
+            'role_id' => $role->id,
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['phone']);
+    }
+
+    public function test_admin_can_update_a_doctor_phone_number(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $doctor = Doctor::factory()->create(['phone' => '0500000000']);
+
+        $response = $this->actingAs($admin, 'sanctum')->patchJson("/api/doctors/{$doctor->id}", [
+            'phone' => '0511111111',
+        ]);
+
+        $response->assertOk()->assertJsonPath('phone', '0511111111');
+        $this->assertDatabaseHas('doctors', ['id' => $doctor->id, 'phone' => '0511111111']);
+    }
+
     public function test_admin_can_update_a_doctor(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

@@ -97,6 +97,45 @@ class PatientControllerTest extends TestCase
         $this->assertDatabaseHas('patients', ['id' => $patient->id, 'insurance_company_id' => null]);
     }
 
+    public function test_admission_clerk_can_store_an_insurance_card_number_with_the_company(): void
+    {
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+        $insuranceCompany = InsuranceCompany::factory()->create();
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson('/api/patients', [
+            'name' => 'أحمد',
+            'insurance_company_id' => $insuranceCompany->id,
+            'insurance_card_number' => 'CARD-123456',
+        ]);
+
+        $response->assertCreated()->assertJsonPath('insurance_card_number', 'CARD-123456');
+        $this->assertDatabaseHas('patients', ['name' => 'أحمد', 'insurance_card_number' => 'CARD-123456']);
+    }
+
+    public function test_admission_clerk_can_update_an_insurance_card_number(): void
+    {
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+        $patient = Patient::factory()->create(['insurance_card_number' => 'OLD-1']);
+
+        $response = $this->actingAs($clerk, 'sanctum')->patchJson("/api/patients/{$patient->id}", [
+            'insurance_card_number' => 'NEW-2',
+        ]);
+
+        $response->assertOk()->assertJsonPath('insurance_card_number', 'NEW-2');
+    }
+
+    public function test_insurance_card_number_cannot_exceed_one_hundred_characters(): void
+    {
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson('/api/patients', [
+            'name' => 'أحمد',
+            'insurance_card_number' => str_repeat('9', 101),
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['insurance_card_number']);
+    }
+
     public function test_patient_index_includes_the_insurance_company_name(): void
     {
         $user = User::factory()->create();

@@ -23,6 +23,7 @@ class Patient extends Model
         'age_day',
         'address',
         'insurance_company_id',
+        'insurance_card_number',
         'is_local_only',
         'emergency_contact_name',
         'emergency_contact_relationship',

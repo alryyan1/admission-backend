@@ -25,6 +25,7 @@ class StorePatientRequest extends FormRequest
             'age_day' => ['nullable', 'integer', 'min:0', 'max:30'],
             'address' => ['nullable', 'string', 'max:255'],
             'insurance_company_id' => ['nullable', 'integer', 'exists:insurance_companies,id'],
+            'insurance_card_number' => ['nullable', 'string', 'max:100'],
         ];
     }
 }

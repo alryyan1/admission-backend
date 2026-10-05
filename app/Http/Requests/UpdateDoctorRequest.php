@@ -19,6 +19,7 @@ class UpdateDoctorRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
             'specialist_id' => ['sometimes', 'nullable', 'integer', 'exists:specialists,id'],
             'role_id' => ['sometimes', 'required', 'integer', 'exists:team_roles,id'],
             'jawda_doctor_id' => [
