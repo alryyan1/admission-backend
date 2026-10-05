@@ -20,8 +20,6 @@ class DepositReceiptPdf extends LetterheadPdf
 
     private const MUTED = [75, 85, 99];
 
-    private const BORDER = [180, 180, 180];
-
     private const BORDER_DARK = [71, 85, 105];
 
     private const PANEL_FILL = [248, 250, 252];
@@ -91,9 +89,9 @@ class DepositReceiptPdf extends LetterheadPdf
 
     /**
      * A formal label/value line: bold label sized to fit its own text (not
-     * a fixed column) so it sits close to the value, with a solid thin rule
-     * beneath. MultiCell() takes its ambient X as the box's LEFT edge even
-     * under RTL mode, so columns are positioned by their left edge.
+     * a fixed column) so it sits close to the value. MultiCell() takes its
+     * ambient X as the box's LEFT edge even under RTL mode, so columns are
+     * positioned by their left edge.
      */
     private function row(string $label, string $value, float $size = 10, bool $boldValue = false): void
     {
@@ -116,10 +114,6 @@ class DepositReceiptPdf extends LetterheadPdf
         $this->setAbsXY($this->leftMarginX(), $y);
         $this->MultiCell($valueWidth, $rowHeight, $value, 0, 'R', false, 0, null, null, true, 0, false, true, 0, 'M');
 
-        $this->Line($this->leftMarginX(), $y + $rowHeight, $this->rightEdge(), $y + $rowHeight, [
-            'width' => 0.2,
-            'color' => self::BORDER,
-        ]);
         $this->setAbsY($y + $rowHeight + 1.5);
     }
 
