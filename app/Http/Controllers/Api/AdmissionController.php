@@ -38,6 +38,7 @@ class AdmissionController extends Controller
             'vitalSigns' => fn ($query) => $query->latest('recorded_at'),
             'doctorOrders.orderedBy',
             'deposits.paymentMethod',
+            'deposits.paidBy',
             'requestedServices',
             'invoices',
             'operations.teamMembers.doctor',

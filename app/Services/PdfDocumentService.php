@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\Operation;
 use App\Support\ArabicNumber;
 use App\Support\Pdf\Documents\DepositReceiptPdf;
+use App\Support\Pdf\Documents\OperationInvoicePdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 
@@ -21,7 +22,7 @@ class PdfDocumentService
 
     public function depositReceipt(AdmissionDeposit $deposit): Response
     {
-        $deposit->loadMissing('paymentMethod', 'admission.patient');
+        $deposit->loadMissing('paymentMethod', 'paidBy', 'admission.patient');
         $patientName = $deposit->admission->patient?->name ?? '—';
         $comment = $deposit->comment
             ? 'دفعة تحت حساب التنويم — '.$deposit->comment
@@ -36,6 +37,7 @@ class PdfDocumentService
             amountWords: ArabicNumber::amountToWords((float) $deposit->amount),
             paymentMethod: $deposit->paymentMethod?->name ?? 'نقدي',
             reason: $comment,
+            recordedBy: $deposit->paidBy?->name ?? '—',
         );
 
         return $this->renderer->toResponse($pdf, "receipt-{$deposit->id}.pdf");
@@ -100,24 +102,16 @@ class PdfDocumentService
         $price = (float) ($operation->price ?? 0);
         $name = 'عملية: '.($operation->procedure?->name_ar ?? ('#'.($operation->operation_number ?? $operation->id)));
 
-        return $this->renderInvoice(
-            title: 'فاتورة مبدئية',
-            filename: "operation-invoice-{$operation->id}.pdf",
-            isFinal: false,
-            invoiceNumber: null,
-            issuedAt: $this->dateTime(now()),
+        $pdf = (new OperationInvoicePdf)->render(
             patientName: $operation->admission->patient?->name ?? '—',
             admissionId: $operation->admission_id,
-            lines: [['name' => $name, 'quantity' => 1, 'total' => $this->money($price)]],
-            servicesTotal: $this->money($price),
-            operationsTotal: null,
-            total: $this->money($price),
-            depositsTotal: null,
-            balanceDue: null,
-            totalWords: ArabicNumber::amountToWords($price),
-            itemsLabel: 'البند',
-            hideSubtotals: true,
+            issuedAt: $this->dateTime(now()),
+            itemName: $name,
+            price: $this->money($price),
+            priceWords: ArabicNumber::amountToWords($price),
         );
+
+        return $this->renderer->toResponse($pdf, "operation-invoice-{$operation->id}.pdf");
     }
 
     public function operationTeam(Operation $operation): Response

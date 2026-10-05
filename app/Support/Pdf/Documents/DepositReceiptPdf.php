@@ -44,6 +44,7 @@ class DepositReceiptPdf extends LetterheadPdf
         string $amountWords,
         string $paymentMethod,
         string $reason,
+        string $recordedBy = '—',
     ): self {
         $this->voucherHeader($receiptNumber, $paidAt);
         $this->Ln(2);
@@ -53,6 +54,7 @@ class DepositReceiptPdf extends LetterheadPdf
         $this->Ln(1.5);
         $this->row('رقم التنويم', '#'.$admissionId);
         $this->row('طريقة الدفع', $paymentMethod);
+        $this->row('استلمها', $recordedBy);
         // $this->noteRow('وذلك عن', $reason);
         $this->Ln(3);
         $this->signatures();
@@ -181,8 +183,8 @@ class DepositReceiptPdf extends LetterheadPdf
     }
 
     /**
-     * Two signature slots (recipient / accountant), each a short rule with
-     * a caption beneath it.
+     * A single signature slot (المحاسب): a short centred rule with a
+     * caption beneath it.
      */
     private function signatures(): void
     {
@@ -190,15 +192,13 @@ class DepositReceiptPdf extends LetterheadPdf
         $rowHeight = 5;
         $this->breakIfNeeded($rowHeight);
         $y = $this->GetY();
+        $center = $this->leftMarginX() + $this->contentWidth() / 2;
 
-        $this->Line($this->rightEdge() - $width, $y, $this->rightEdge(), $y, ['width' => 0.3, 'color' => self::BORDER_DARK]);
-        $this->Line($this->leftMarginX(), $y, $this->leftMarginX() + $width, $y, ['width' => 0.3, 'color' => self::BORDER_DARK]);
+        $this->Line($center - $width / 2, $y, $center + $width / 2, $y, ['width' => 0.3, 'color' => self::BORDER_DARK]);
 
         $this->SetFont(config('pdf.font'), '', 9);
         $this->setTextColor(...self::MUTED);
-        $this->setAbsXY($this->rightEdge(), $y + 1.5);
-        $this->Cell($width, $rowHeight, 'توقيع المستلم', 0, 0, 'C');
-        $this->setAbsXY($this->leftMarginX() + $width, $y + 1.5);
+        $this->setAbsXY($center + $width / 2, $y + 1.5);
         $this->Cell($width, $rowHeight, 'توقيع المحاسب', 0, 0, 'C');
         $this->setTextColor(...self::INK);
 

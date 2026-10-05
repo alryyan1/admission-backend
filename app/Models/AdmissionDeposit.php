@@ -24,6 +24,15 @@ class AdmissionDeposit extends Model
         'paid_at' => 'datetime',
     ];
 
+    /**
+     * Appended alongside the raw `paid_by` foreign key, which already holds
+     * the user id — a `paidBy` relation key would collide with it when
+     * serialized (both snake-case to `paid_by`).
+     */
+    protected $appends = [
+        'paid_by_name',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function (AdmissionDeposit $deposit) {
@@ -44,5 +53,10 @@ class AdmissionDeposit extends Model
     public function paymentMethod(): BelongsTo
     {
         return $this->belongsTo(PaymentMethod::class);
+    }
+
+    public function getPaidByNameAttribute(): ?string
+    {
+        return $this->paidBy?->name;
     }
 }
