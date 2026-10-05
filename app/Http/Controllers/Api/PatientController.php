@@ -26,26 +26,28 @@ class PatientController extends Controller
             });
         }
 
-        return response()->json($query->latest()->paginate($request->integer('per_page', 15)));
+        return response()->json(
+            $query->with('insuranceCompany')->latest()->paginate($request->integer('per_page', 15))
+        );
     }
 
     public function show(Patient $patient): JsonResponse
     {
-        return response()->json($patient);
+        return response()->json($patient->load('insuranceCompany'));
     }
 
     public function store(StorePatientRequest $request): JsonResponse
     {
         $patient = Patient::create([...$request->validated(), 'is_local_only' => true]);
 
-        return response()->json($patient, Response::HTTP_CREATED);
+        return response()->json($patient->load('insuranceCompany'), Response::HTTP_CREATED);
     }
 
     public function update(UpdatePatientRequest $request, Patient $patient): JsonResponse
     {
         $patient->update($request->validated());
 
-        return response()->json($patient);
+        return response()->json($patient->load('insuranceCompany'));
     }
 
     /**

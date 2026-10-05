@@ -32,6 +32,7 @@ class InsuranceCompanyController extends Controller
 
     public function destroy(InsuranceCompany $insuranceCompany): JsonResponse
     {
+        $insuranceCompany->patients()->update(['insurance_company_id' => null]);
         $insuranceCompany->delete();
 
         return response()->json(null, Response::HTTP_NO_CONTENT);

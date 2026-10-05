@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -21,6 +22,7 @@ class Patient extends Model
         'age_month',
         'age_day',
         'address',
+        'insurance_company_id',
         'is_local_only',
         'emergency_contact_name',
         'emergency_contact_relationship',
@@ -42,6 +44,11 @@ class Patient extends Model
     public function admissions(): HasMany
     {
         return $this->hasMany(Admission::class);
+    }
+
+    public function insuranceCompany(): BelongsTo
+    {
+        return $this->belongsTo(InsuranceCompany::class);
     }
 
     public function getActivitylogOptions(): LogOptions

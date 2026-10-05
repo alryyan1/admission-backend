@@ -147,6 +147,68 @@ class InsuranceCompanyControllerTest extends TestCase
         $this->assertDatabaseMissing('insurance_companies', ['id' => $insuranceCompany->id]);
     }
 
+    public function test_admin_can_create_an_insurance_company_with_email_and_coverage_percentage(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/insurance-companies', [
+            'name' => 'التعاونية',
+            'email' => 'info@taawuniya.example',
+            'coverage_percentage' => 80.5,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('email', 'info@taawuniya.example')
+            ->assertJsonPath('coverage_percentage', '80.50');
+        $this->assertDatabaseHas('insurance_companies', [
+            'name' => 'التعاونية',
+            'email' => 'info@taawuniya.example',
+            'coverage_percentage' => 80.5,
+        ]);
+    }
+
+    public function test_coverage_percentage_must_be_between_zero_and_one_hundred(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/insurance-companies', [
+            'name' => 'بوبا',
+            'coverage_percentage' => 101,
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['coverage_percentage']);
+    }
+
+    public function test_email_must_be_a_valid_email_address(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/insurance-companies', [
+            'name' => 'بوبا',
+            'email' => 'ليس-بريد',
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_admin_can_update_email_and_coverage_percentage(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $insuranceCompany = InsuranceCompany::factory()->create(['email' => null, 'coverage_percentage' => null]);
+
+        $response = $this->actingAs($admin, 'sanctum')->patchJson("/api/insurance-companies/{$insuranceCompany->id}", [
+            'email' => 'contact@bupa.example',
+            'coverage_percentage' => 70,
+        ]);
+
+        $response->assertOk()->assertJsonPath('email', 'contact@bupa.example');
+        $this->assertDatabaseHas('insurance_companies', [
+            'id' => $insuranceCompany->id,
+            'email' => 'contact@bupa.example',
+            'coverage_percentage' => 70,
+        ]);
+    }
+
     public function test_non_admin_cannot_delete_an_insurance_company(): void
     {
         $user = User::factory()->create(['role' => 'nurse']);

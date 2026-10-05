@@ -15,6 +15,8 @@ class InsuranceCompanyFactory extends Factory
         return [
             'name' => fake()->unique()->randomElement(['التأمين الوطني', 'التعاونية', 'بوبا', 'ميد غلف', 'الأهلية']),
             'phone' => fake()->numerify('05########'),
+            'email' => fake()->unique()->safeEmail(),
+            'coverage_percentage' => fake()->randomFloat(2, 0, 100),
         ];
     }
 }

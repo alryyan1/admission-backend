@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InsuranceCompany extends Model
 {
@@ -12,5 +13,16 @@ class InsuranceCompany extends Model
     protected $fillable = [
         'name',
         'phone',
+        'email',
+        'coverage_percentage',
     ];
+
+    protected $casts = [
+        'coverage_percentage' => 'decimal:2',
+    ];
+
+    public function patients(): HasMany
+    {
+        return $this->hasMany(Patient::class);
+    }
 }

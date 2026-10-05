@@ -26,6 +26,8 @@ class UpdateInsuranceCompanyRequest extends FormRequest
                 Rule::unique('insurance_companies', 'name')->ignore($this->route('insurance_company')),
             ],
             'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:255'],
+            'coverage_percentage' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
         ];
     }
 
@@ -37,6 +39,8 @@ class UpdateInsuranceCompanyRequest extends FormRequest
         return [
             'name.required' => 'اسم شركة التأمين مطلوب',
             'name.unique' => 'اسم شركة التأمين مسجل مسبقاً',
+            'email.email' => 'البريد الإلكتروني غير صحيح',
+            'coverage_percentage.between' => 'نسبة التحمل يجب أن تكون بين 0 و 100',
         ];
     }
 }
