@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Admission;
+use App\Models\FacilitySetting;
 use App\Models\Operation;
 use App\Models\Procedure;
 use App\Models\User;
 use App\Services\InvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -35,6 +37,22 @@ class PdfDocumentsTest extends TestCase
 
     public function test_deposit_receipt_pdf(): void
     {
+        $user = User::factory()->create();
+        $admission = Admission::factory()->create();
+        $deposit = $admission->deposits()->create(['amount' => 2000, 'paid_at' => now()]);
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')
+                ->get("/api/admissions/{$admission->id}/deposits/{$deposit->id}/receipt.pdf")
+        );
+    }
+
+    public function test_deposit_receipt_pdf_survives_a_corrupted_facility_logo(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('facility/corrupt-logo.png', 'not actually a png');
+        FacilitySetting::current()->update(['logo_path' => 'facility/corrupt-logo.png', 'use_logo' => true]);
+
         $user = User::factory()->create();
         $admission = Admission::factory()->create();
         $deposit = $admission->deposits()->create(['amount' => 2000, 'paid_at' => now()]);

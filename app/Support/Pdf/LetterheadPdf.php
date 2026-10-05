@@ -3,6 +3,7 @@
 namespace App\Support\Pdf;
 
 use App\Models\FacilitySetting;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use TCPDF;
 
@@ -42,7 +43,7 @@ class LetterheadPdf extends TCPDF
         $logo = $this->facilityImagePath('logo_path', (bool) $this->facility->use_logo);
 
         if ($logo !== null) {
-            $this->Image($logo, 15, 8, 0, 18, '', '', 'T', false, 300, '', false, false, 0);
+            $this->safeImage($logo, 15, 8, 0, 18, '', '', 'T', false, 300, '', false, false, 0);
         }
 
         $this->SetFont(config('pdf.font'), 'B', 14);
@@ -107,7 +108,7 @@ class LetterheadPdf extends TCPDF
 
         $width = $this->getPageWidth() * 0.6;
         $this->setAlpha(0.08);
-        $this->Image(
+        $this->safeImage(
             $path,
             ($this->getPageWidth() - $width) / 2,
             $this->getPageHeight() * 0.28,
@@ -482,9 +483,14 @@ class LetterheadPdf extends TCPDF
             return;
         }
 
-        $this->Image($path, 22, $this->getPageHeight() - 55, 30, 0, '', '', '', false, 300);
+        $this->safeImage($path, 22, $this->getPageHeight() - 55, 30, 0, '', '', '', false, 300);
     }
 
+    /**
+     * Resolve a facility image to a filesystem path, verifying it's not
+     * just present but actually a readable, decodable image — a stale or
+     * corrupted upload must never break PDF generation for every document.
+     */
     private function facilityImagePath(string $column, bool $enabled): ?string
     {
         $value = $this->facility->{$column};
@@ -495,6 +501,32 @@ class LetterheadPdf extends TCPDF
 
         $disk = Storage::disk('public');
 
-        return $disk->exists($value) ? $disk->path($value) : null;
+        if (! $disk->exists($value)) {
+            return null;
+        }
+
+        $path = $disk->path($value);
+
+        if (! is_readable($path) || @getimagesize($path) === false) {
+            Log::warning('Skipping unreadable facility PDF image', ['column' => $column, 'path' => $path]);
+
+            return null;
+        }
+
+        return $path;
+    }
+
+    /**
+     * Image(), guarded: a facility logo/watermark/stamp that passes the
+     * readability check above but still fails inside TCPDF/GD (e.g. an
+     * unsupported PNG profile) must not take down the whole PDF response.
+     */
+    private function safeImage(...$args): void
+    {
+        try {
+            $this->Image(...$args);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to draw PDF image', ['message' => $e->getMessage()]);
+        }
     }
 }
