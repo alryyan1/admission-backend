@@ -14,15 +14,16 @@ use App\Http\Controllers\Api\DoctorOrderController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FacilitySettingController;
 use App\Http\Controllers\Api\FloorController;
+use App\Http\Controllers\Api\InsuranceCompanyController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\NursingAssignmentController;
 use App\Http\Controllers\Api\OperationController;
 use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\PaymentMethodController;
+use App\Http\Controllers\Api\PaymentsReportController;
 use App\Http\Controllers\Api\PdfController;
 use App\Http\Controllers\Api\ProcedureCategoryController;
 use App\Http\Controllers\Api\ProcedureController;
-use App\Http\Controllers\Api\InsuranceCompanyController;
 use App\Http\Controllers\Api\RequestedServiceController;
 use App\Http\Controllers\Api\RevenueCalculatorController;
 use App\Http\Controllers\Api\RoomController;
@@ -170,6 +171,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/reports/revenue-calculator', [RevenueCalculatorController::class, 'show']);
     Route::get('/reports/revenue-calculator.pdf', [PdfController::class, 'revenueCalculator']);
+    Route::get('/reports/payments', [PaymentsReportController::class, 'index'])->middleware('role:admin,cashier');
+    Route::get('/reports/payments.pdf', [PdfController::class, 'paymentsReport'])->middleware('role:admin,cashier');
 
     Route::get('/statistics/occupancy', [StatisticsController::class, 'occupancy']);
     Route::get('/statistics/admissions', [StatisticsController::class, 'admissions']);

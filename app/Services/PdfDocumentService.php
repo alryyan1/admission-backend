@@ -7,6 +7,7 @@ use App\Models\AdmissionDeposit;
 use App\Models\Invoice;
 use App\Models\Operation;
 use App\Support\ArabicNumber;
+use App\Support\Pdf\Documents\DepositReceiptPdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 
@@ -26,21 +27,16 @@ class PdfDocumentService
             ? 'دفعة تحت حساب التنويم — '.$deposit->comment
             : 'دفعة تحت حساب التنويم';
 
-        $pdf = $this->renderer->make('إيصال استلام دفعة', 'L', 'A5');
-
-        $pdf->mutedCenter('رقم الإيصال: '.$deposit->id);
-        $pdf->spacing(2);
-        $pdf->metaRow(
-            'المريض: '.$patientName,
-            'رقم التنويم: #'.$deposit->admission_id,
-            'التاريخ: '.$this->dateTime($deposit->paid_at)
+        $pdf = (new DepositReceiptPdf)->render(
+            receiptNumber: $deposit->id,
+            patientName: $patientName,
+            admissionId: $deposit->admission_id,
+            paidAt: $this->dateTime($deposit->paid_at),
+            amount: $this->money($deposit->amount),
+            amountWords: ArabicNumber::amountToWords((float) $deposit->amount),
+            paymentMethod: $deposit->paymentMethod?->name ?? 'نقدي',
+            reason: $comment,
         );
-        $pdf->spacing(3);
-        $pdf->kvRow('استلمنا من', $patientName);
-        $pdf->amountBox('المبلغ المدفوع', $this->money($deposit->amount));
-        $pdf->wordsBlock('المبلغ كتابة', ArabicNumber::amountToWords((float) $deposit->amount));
-        $pdf->kvRow('طريقة الدفع', $deposit->paymentMethod?->name ?? 'نقدي');
-        $pdf->kvRow('وذلك عن', $comment);
 
         return $this->renderer->toResponse($pdf, "receipt-{$deposit->id}.pdf");
     }
@@ -494,6 +490,59 @@ class PdfDocumentService
         }
 
         return $this->renderer->toResponse($pdf, "revenue-calculator-{$data['date']}.pdf");
+    }
+
+    public function paymentsReport(Carbon $from, Carbon $to, ?string $generatedBy): Response
+    {
+        $payments = AdmissionDeposit::query()
+            ->with(['admission.patient', 'paymentMethod'])
+            ->whereBetween('paid_at', [$from, $to])
+            ->orderBy('paid_at')
+            ->get();
+
+        $pdf = $this->renderer->make('تقرير المدفوعات', 'L', 'A4');
+
+        $pdf->metaRow(
+            'من: '.$this->date($from),
+            'إلى: '.$this->date($to),
+            'تاريخ الطباعة: '.$this->dateTime(now())
+        );
+        $pdf->spacing(3);
+
+        $cw = $pdf->contentWidth();
+        $widths = [$cw * 0.16, $cw * 0.30, $cw * 0.14, $cw * 0.18, $cw * 0.22];
+        $pdf->tableHeader([
+            ['label' => 'التاريخ', 'width' => $widths[0]],
+            ['label' => 'المريض', 'width' => $widths[1]],
+            ['label' => 'رقم التنويم', 'width' => $widths[2]],
+            ['label' => 'طريقة الدفع', 'width' => $widths[3]],
+            ['label' => 'المبلغ', 'width' => $widths[4]],
+        ]);
+
+        if ($payments->isEmpty()) {
+            $pdf->tableEmptyRow('لا توجد مدفوعات ضمن الفترة المحددة');
+        }
+
+        foreach ($payments as $deposit) {
+            $pdf->tableRow([
+                $this->dateTime($deposit->paid_at),
+                $deposit->admission?->patient?->name ?? '—',
+                '#'.$deposit->admission_id,
+                $deposit->paymentMethod?->name ?? '—',
+                $this->money($deposit->amount),
+            ], $widths);
+        }
+
+        $pdf->totalsBlock([
+            ['label' => 'عدد المدفوعات', 'value' => (string) $payments->count()],
+            ['label' => 'إجمالي المدفوعات', 'value' => $this->money($payments->sum('amount')), 'bold' => true, 'big' => true],
+        ]);
+
+        if ($generatedBy) {
+            $pdf->mutedCenter('أُعدّ بواسطة: '.$generatedBy);
+        }
+
+        return $this->renderer->toResponse($pdf, "payments-report-{$from->toDateString()}-{$to->toDateString()}.pdf");
     }
 
     /**

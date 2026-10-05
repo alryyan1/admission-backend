@@ -62,4 +62,12 @@ class PdfController extends Controller
 
         return $this->documents->revenueCalculator($date, $request->user()?->name);
     }
+
+    public function paymentsReport(Request $request): Response
+    {
+        $from = $request->filled('from') ? Carbon::parse($request->query('from')) : now()->subDays(29);
+        $to = $request->filled('to') ? Carbon::parse($request->query('to')) : now();
+
+        return $this->documents->paymentsReport($from->startOfDay(), $to->endOfDay(), $request->user()?->name);
+    }
 }
