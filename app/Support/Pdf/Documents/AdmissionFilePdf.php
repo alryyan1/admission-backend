@@ -11,8 +11,9 @@ use App\Support\Pdf\LetterheadPdf;
  * Laid out to the usual hospital medical-record conventions: every page
  * carries the patient identifiers, allergies are flagged in a distinct alert
  * colour, and each block of information sits under a titled band with
- * label-over-value fields. Draws directly with TCPDF's Cell()/MultiCell()/
- * Rect()/Line() primitives.
+ * label-over-value fields. Structure is conveyed with horizontal rules and
+ * shaded bands only, with no boxed cells, to keep the file compact. Draws
+ * directly with TCPDF's Cell()/MultiCell()/Rect()/Line() primitives.
  */
 class AdmissionFilePdf extends LetterheadPdf
 {
@@ -30,11 +31,11 @@ class AdmissionFilePdf extends LetterheadPdf
 
     private const PANEL_FILL = [248, 250, 252];
 
-    private const SECTION_HEIGHT = 7;
+    private const SECTION_HEIGHT = 6;
 
-    private const FACT_MIN_HEIGHT = 12;
+    private const FACT_MIN_HEIGHT = 9;
 
-    private const ROW_MIN_HEIGHT = 7;
+    private const ROW_MIN_HEIGHT = 6;
 
     private string $patientName = '—';
 
@@ -84,14 +85,14 @@ class AdmissionFilePdf extends LetterheadPdf
         }
 
         foreach ($notes as $note) {
-            $this->Ln(3);
+            $this->Ln(2);
             $this->textPanel($note['label'], $note['text']);
         }
 
         $this->summaryTotals('الملخص المالي', $totals);
 
         if ($balanceWords !== null) {
-            $this->Ln(2);
+            $this->Ln(1);
             $this->textPanel('المبلغ المستحق كتابة', $balanceWords);
         }
 
@@ -106,13 +107,10 @@ class AdmissionFilePdf extends LetterheadPdf
      */
     private function identifierStrip(string $issuedAt): void
     {
-        $height = 7;
+        $height = 6;
         $width = $this->contentWidth() / 3;
         $y = $this->GetY();
         $edge = $this->rightEdge();
-
-        $this->setFillColor(...self::PANEL_FILL);
-        $this->Rect($this->leftMarginX(), $y, $this->contentWidth(), $height, 'DF', $this->strongBorder());
 
         $this->SetFont(config('pdf.font'), '', 9);
         $this->setTextColor(...self::INK);
@@ -123,20 +121,21 @@ class AdmissionFilePdf extends LetterheadPdf
         $this->setAbsXY($edge - (2 * $width) + 2, $y);
         $this->Cell($width, $height, 'تاريخ الطباعة: '.$issuedAt, 0, 0, 'L');
 
-        $this->setAbsY($y + $height + 3);
+        $this->horizontalRule($y + $height, $this->strongLine());
+        $this->setAbsY($y + $height + 2);
     }
 
     /**
-     * A shaded, bordered band naming the block that follows.
+     * A shaded band naming the block that follows.
      */
     private function sectionHeader(string $title): void
     {
-        $this->fitOrNewPage(self::SECTION_HEIGHT + 15);
-        $this->Ln(3);
+        $this->fitOrNewPage(self::SECTION_HEIGHT + 12);
+        $this->Ln(2);
         $y = $this->GetY();
 
         $this->setFillColor(...self::PANEL_FILL);
-        $this->Rect($this->leftMarginX(), $y, $this->contentWidth(), self::SECTION_HEIGHT, 'DF', $this->strongBorder());
+        $this->Rect($this->leftMarginX(), $y, $this->contentWidth(), self::SECTION_HEIGHT, 'F');
 
         $this->SetFont(config('pdf.font'), 'B', 10);
         $this->setTextColor(...self::INK);
@@ -147,9 +146,9 @@ class AdmissionFilePdf extends LetterheadPdf
     }
 
     /**
-     * A grid of label-over-value fields, three units wide. A field may span
-     * several units, and an alert field (e.g. allergies) is drawn in the alert
-     * colour so it cannot be missed.
+     * A grid of label-over-value fields, three units wide, each block closed
+     * by a hairline. A field may span several units, and an alert field (e.g.
+     * allergies) is drawn in the alert colour so it cannot be missed.
      *
      * @param  list<list<array{label: string, value: string, span?: int, alert?: bool}>>  $rows
      */
@@ -171,11 +170,10 @@ class AdmissionFilePdf extends LetterheadPdf
             foreach ($facts as $fact) {
                 $width = $unitWidth * ($fact['span'] ?? 1);
                 $x -= $width;
-                $alert = $fact['alert'] ?? false;
-                $this->Rect($x, $y, $width, $rowHeight, 'D', $alert ? $this->alertBorder() : $this->cellBorder());
-                $this->drawFact($fact['label'], $fact['value'], $x + 2, $y + 1.5, $width - 4, $alert);
+                $this->drawFact($fact['label'], $fact['value'], $x + 2, $y + 1, $width - 4, $fact['alert'] ?? false);
             }
 
+            $this->horizontalRule($y + $rowHeight, $this->hairline());
             $this->setAbsY($y + $rowHeight);
         }
     }
@@ -188,7 +186,7 @@ class AdmissionFilePdf extends LetterheadPdf
         $this->SetFont(config('pdf.font'), '', 10);
         $valueHeight = $this->getStringHeight($textWidth, $value);
 
-        return $labelHeight + $valueHeight + 3;
+        return $labelHeight + $valueHeight + 2;
     }
 
     private function drawFact(string $label, string $value, float $x, float $y, float $textWidth, bool $alert): void
@@ -209,8 +207,8 @@ class AdmissionFilePdf extends LetterheadPdf
     }
 
     /**
-     * A ruled table with a shaded header row. The header is repeated when the
-     * table continues onto a new page.
+     * A table with a shaded header row and hairline row separators. The header
+     * is repeated when the table continues onto a new page.
      *
      * @param  list<string>  $headings
      * @param  list<float>  $ratios  each column's share of the content width
@@ -257,7 +255,7 @@ class AdmissionFilePdf extends LetterheadPdf
             return [$cells, $variant, $this->rowHeight($cells, $widths, $variant)];
         }, $rows);
 
-        $this->fitOrNewPage(array_sum(array_column($blocks, 2)) + self::SECTION_HEIGHT + 18);
+        $this->fitOrNewPage(array_sum(array_column($blocks, 2)) + self::SECTION_HEIGHT + 14);
         $this->sectionHeader($title);
 
         foreach ($blocks as [$cells, $variant, $height]) {
@@ -266,29 +264,28 @@ class AdmissionFilePdf extends LetterheadPdf
     }
 
     /**
-     * A bordered box with a bold label above wrapped body text.
+     * A bold label above wrapped body text, closed by a rule.
      */
     private function textPanel(string $label, string $text): void
     {
         $labelHeight = 5;
         $this->SetFont(config('pdf.font'), '', 10);
         $textHeight = $this->getStringHeight($this->contentWidth() - 8, $text);
-        $boxHeight = $labelHeight + $textHeight + 4;
-        $this->fitOrNewPage($boxHeight);
+        $blockHeight = 1 + $labelHeight + $textHeight + 2;
+        $this->fitOrNewPage($blockHeight);
         $y = $this->GetY();
-
-        $this->Rect($this->leftMarginX(), $y, $this->contentWidth(), $boxHeight, 'D', $this->strongBorder());
 
         $this->SetFont(config('pdf.font'), 'B', 8.5);
         $this->setTextColor(...self::INK);
-        $this->setAbsXY($this->rightEdge() - 4, $y + 1.5);
+        $this->setAbsXY($this->rightEdge() - 4, $y + 1);
         $this->Cell($this->contentWidth() - 8, $labelHeight, $label, 0, 0, 'R');
 
         $this->SetFont(config('pdf.font'), '', 10);
-        $this->setAbsXY($this->leftMarginX() + 4, $y + 1.5 + $labelHeight);
+        $this->setAbsXY($this->leftMarginX() + 4, $y + 1 + $labelHeight);
         $this->MultiCell($this->contentWidth() - 8, $textHeight, $text, 0, 'R', false, 0, null, null, true, 0, false, true, 0, 'T');
 
-        $this->setAbsY($y + $boxHeight);
+        $this->horizontalRule($y + $blockHeight, $this->hairline());
+        $this->setAbsY($y + $blockHeight);
     }
 
     /**
@@ -299,14 +296,14 @@ class AdmissionFilePdf extends LetterheadPdf
      */
     private function signatures(array $labels): void
     {
-        $this->fitOrNewPage(24);
-        $this->Ln(12);
+        $this->fitOrNewPage(22);
+        $this->Ln(8);
         $y = $this->GetY();
         $slotWidth = $this->contentWidth() / count($labels);
 
         foreach ($labels as $index => $label) {
             $slotRight = $this->rightEdge() - ($index * $slotWidth);
-            $this->Line($slotRight - $slotWidth + 6, $y, $slotRight - 6, $y, $this->strongBorder());
+            $this->Line($slotRight - $slotWidth + 6, $y, $slotRight - 6, $y, $this->strongLine());
 
             $this->SetFont(config('pdf.font'), '', 9);
             $this->setTextColor(...self::MUTED);
@@ -336,26 +333,26 @@ class AdmissionFilePdf extends LetterheadPdf
     }
 
     /**
-     * Draws one row of bordered cells, right-to-left (matching RTL reading
-     * order). Pass $startX to anchor the row somewhere other than the right
-     * margin.
+     * Draws one row right-to-left (matching RTL reading order). The row is
+     * shaded when its variant calls for it, and closed by a rule beneath: a
+     * strong one under headers, a hairline under body rows.
      *
      * @param  list<string>  $cells
      * @param  list<float>  $widths
      */
-    private function drawRow(array $cells, array $widths, float $height, string $variant, ?float $startX = null): void
+    private function drawRow(array $cells, array $widths, float $height, string $variant): void
     {
         $style = $this->rowStyle($variant);
         $y = $this->GetY();
-        $x = $startX ?? $this->rightEdge();
+        $x = $this->rightEdge();
+
+        if ($style['fill']) {
+            $this->setFillColor(...self::PANEL_FILL);
+            $this->Rect($this->leftMarginX(), $y, $this->contentWidth(), $height, 'F');
+        }
 
         foreach ($cells as $i => $text) {
             $x -= $widths[$i];
-
-            if ($style['fill']) {
-                $this->setFillColor(...self::PANEL_FILL);
-            }
-            $this->Rect($x, $y, $widths[$i], $height, $style['fill'] ? 'DF' : 'D', $this->cellBorder());
 
             $this->SetFont(config('pdf.font'), $style['style'], $style['size']);
             $this->setTextColor(...$style['ink']);
@@ -363,6 +360,7 @@ class AdmissionFilePdf extends LetterheadPdf
             $this->MultiCell($widths[$i] - 4, $height, (string) $text, 0, $style['align'], false, 0, null, null, true, 0, false, true, 0, 'M');
         }
 
+        $this->horizontalRule($y + $height, $variant === 'header' ? $this->strongLine() : $this->hairline());
         $this->setAbsY($y + $height);
     }
 
@@ -397,10 +395,15 @@ class AdmissionFilePdf extends LetterheadPdf
         return true;
     }
 
+    private function horizontalRule(float $y, array $style): void
+    {
+        $this->Line($this->leftMarginX(), $y, $this->rightEdge(), $y, $style);
+    }
+
     /**
      * @return array{width: float, color: array{int, int, int}}
      */
-    private function cellBorder(): array
+    private function hairline(): array
     {
         return ['width' => 0.2, 'color' => self::BORDER];
     }
@@ -408,15 +411,7 @@ class AdmissionFilePdf extends LetterheadPdf
     /**
      * @return array{width: float, color: array{int, int, int}}
      */
-    private function alertBorder(): array
-    {
-        return ['width' => 0.5, 'color' => self::ALERT];
-    }
-
-    /**
-     * @return array{width: float, color: array{int, int, int}}
-     */
-    private function strongBorder(): array
+    private function strongLine(): array
     {
         return ['width' => 0.3, 'color' => self::BORDER_DARK];
     }
