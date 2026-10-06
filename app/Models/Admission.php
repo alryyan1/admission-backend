@@ -14,16 +14,29 @@ class Admission extends Model
 {
     use HasFactory, LogsActivity;
 
+    /**
+     * How the patient came into the hospital, keyed by stored value.
+     *
+     * @var array<string, string>
+     */
+    public const ENTRY_TYPES = [
+        'emergency' => 'طوارئ',
+        'clinic_referral' => 'تحويل من عيادة',
+        'hospital_transfer' => 'تحويل من مستشفى آخر',
+        'scheduled' => 'دخول مجدول',
+    ];
+
+    public const ENTRY_TYPE_HOSPITAL_TRANSFER = 'hospital_transfer';
+
     protected $fillable = [
         'patient_id',
         'bed_id',
-        'admitting_doctor_id',
-        'referred_by_doctor_id',
         'admitted_by',
         'discharged_by',
         'cancelled_by',
         'admission_number',
-        'admission_type',
+        'entry_type',
+        'referring_hospital_name',
         'admission_date',
         'discharge_date',
         'status',
@@ -48,7 +61,9 @@ class Admission extends Model
         });
 
         static::created(function (Admission $admission) {
-            $admission->bed()->update(['status' => 'occupied']);
+            if ($admission->bed_id !== null) {
+                $admission->bed()->update(['status' => 'occupied']);
+            }
 
             $sequence = static::query()
                 ->whereBetween('admission_date', [
@@ -64,7 +79,11 @@ class Admission extends Model
         });
 
         static::updated(function (Admission $admission) {
-            if ($admission->wasChanged('status') && in_array($admission->status, ['discharged', 'cancelled'], true)) {
+            if (
+                $admission->wasChanged('status')
+                && in_array($admission->status, ['discharged', 'cancelled'], true)
+                && $admission->bed_id !== null
+            ) {
                 $admission->bed()->update(['status' => 'available']);
             }
         });
@@ -78,16 +97,6 @@ class Admission extends Model
     public function bed(): BelongsTo
     {
         return $this->belongsTo(Bed::class);
-    }
-
-    public function admittingDoctor(): BelongsTo
-    {
-        return $this->belongsTo(Doctor::class, 'admitting_doctor_id');
-    }
-
-    public function referredByDoctor(): BelongsTo
-    {
-        return $this->belongsTo(Doctor::class, 'referred_by_doctor_id');
     }
 
     public function admittedBy(): BelongsTo

@@ -17,8 +17,6 @@ class UpdateAdmissionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'admitting_doctor_id' => ['sometimes', 'nullable', 'integer', 'exists:doctors,id'],
-            'referred_by_doctor_id' => ['sometimes', 'nullable', 'integer', 'exists:doctors,id'],
             'diagnosis' => ['sometimes', 'nullable', 'string', 'max:255'],
             'admission_notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];

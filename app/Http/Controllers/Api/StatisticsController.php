@@ -64,10 +64,10 @@ class StatisticsController extends Controller
             ->pluck('total', 'status');
 
         $typeCounts = Admission::query()
-            ->selectRaw('admission_type, COUNT(*) as total')
+            ->selectRaw("COALESCE(entry_type, 'unspecified') as entry_type, COUNT(*) as total")
             ->whereBetween('admission_date', [$from, $to])
-            ->groupBy('admission_type')
-            ->pluck('total', 'admission_type');
+            ->groupByRaw("COALESCE(entry_type, 'unspecified')")
+            ->pluck('total', 'entry_type');
 
         $dailyTrend = Admission::query()
             ->selectRaw('DATE(admission_date) as date, COUNT(*) as total')
@@ -159,10 +159,11 @@ class StatisticsController extends Controller
         [$from, $to] = $this->resolveRange($request);
 
         $topDoctorRows = Admission::query()
-            ->whereNotNull('admitting_doctor_id')
-            ->whereBetween('admission_date', [$from, $to])
-            ->selectRaw('admitting_doctor_id, COUNT(*) as admissions_count')
-            ->groupBy('admitting_doctor_id')
+            ->join('patients', 'patients.id', '=', 'admissions.patient_id')
+            ->whereNotNull('patients.admitting_doctor_id')
+            ->whereBetween('admissions.admission_date', [$from, $to])
+            ->selectRaw('patients.admitting_doctor_id, COUNT(*) as admissions_count')
+            ->groupBy('patients.admitting_doctor_id')
             ->orderByDesc('admissions_count')
             ->limit(10)
             ->get();

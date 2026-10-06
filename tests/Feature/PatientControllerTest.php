@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Doctor;
 use App\Models\InsuranceCompany;
 use App\Models\Patient;
 use App\Models\User;
@@ -145,5 +146,58 @@ class PatientControllerTest extends TestCase
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/patients');
 
         $response->assertOk()->assertJsonPath('data.0.insurance_company.name', 'بوبا');
+    }
+
+    public function test_admission_clerk_can_store_admitting_and_referring_doctors_with_a_patient(): void
+    {
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+        $admittingDoctor = Doctor::factory()->create();
+        $referringDoctor = Doctor::factory()->create();
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson('/api/patients', [
+            'name' => 'أحمد',
+            'admitting_doctor_id' => $admittingDoctor->id,
+            'referred_by_doctor_id' => $referringDoctor->id,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('admitting_doctor.id', $admittingDoctor->id)
+            ->assertJsonPath('referred_by_doctor.id', $referringDoctor->id);
+    }
+
+    public function test_admission_clerk_can_set_and_clear_a_patients_doctors(): void
+    {
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+        $patient = Patient::factory()->create(['admitting_doctor_id' => null, 'referred_by_doctor_id' => null]);
+        $doctor = Doctor::factory()->create();
+
+        $setResponse = $this->actingAs($clerk, 'sanctum')->patchJson("/api/patients/{$patient->id}", [
+            'admitting_doctor_id' => $doctor->id,
+            'referred_by_doctor_id' => $doctor->id,
+        ]);
+
+        $setResponse->assertOk()
+            ->assertJsonPath('admitting_doctor.id', $doctor->id)
+            ->assertJsonPath('referred_by_doctor.id', $doctor->id);
+
+        $clearResponse = $this->actingAs($clerk, 'sanctum')->patchJson("/api/patients/{$patient->id}", [
+            'admitting_doctor_id' => null,
+        ]);
+
+        $clearResponse->assertOk()->assertJsonPath('admitting_doctor_id', null);
+        $this->assertDatabaseHas('patients', ['id' => $patient->id, 'referred_by_doctor_id' => $doctor->id]);
+    }
+
+    public function test_updating_a_patient_rejects_an_unknown_doctor(): void
+    {
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+        $patient = Patient::factory()->create();
+
+        $response = $this->actingAs($clerk, 'sanctum')->patchJson("/api/patients/{$patient->id}", [
+            'admitting_doctor_id' => 999999,
+            'referred_by_doctor_id' => 999999,
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['admitting_doctor_id', 'referred_by_doctor_id']);
     }
 }

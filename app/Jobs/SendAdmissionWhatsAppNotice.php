@@ -25,7 +25,7 @@ class SendAdmissionWhatsAppNotice implements ShouldQueue
 
         $phone = $this->admission->patient?->phone;
 
-        if (blank($phone) || ! $whatsApp->isConfigured()) {
+        if (blank($phone) || $this->admission->bed === null || ! $whatsApp->isConfigured()) {
             return;
         }
 

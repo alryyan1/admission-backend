@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AssignAdmissionBedRequest;
 use App\Http\Requests\CancelAdmissionRequest;
 use App\Http\Requests\DischargeAdmissionRequest;
+use App\Http\Requests\RegisterAdmissionRequest;
 use App\Http\Requests\StoreAdmissionRequest;
 use App\Http\Requests\UpdateAdmissionRequest;
 use App\Models\Admission;
+use App\Models\Patient;
 use App\Services\AdmissionService;
 use App\Services\InvoiceService;
 use Carbon\Carbon;
@@ -29,12 +32,12 @@ class AdmissionController extends Controller
     {
         return [
             'patient.insuranceCompany',
+            'patient.admittingDoctor',
+            'patient.referredByDoctor',
             'bed.room.ward.floor',
             'admittedBy',
             'dischargedBy',
             'cancelledBy',
-            'admittingDoctor',
-            'referredByDoctor',
             'vitalSigns' => fn ($query) => $query->latest('recorded_at'),
             'doctorOrders.orderedBy',
             'deposits.paymentMethod',
@@ -52,7 +55,7 @@ class AdmissionController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Admission::with([
-            'patient.insuranceCompany', 'bed.room.ward.floor', 'admittingDoctor', 'referredByDoctor',
+            'patient.insuranceCompany', 'patient.admittingDoctor', 'patient.referredByDoctor', 'bed.room.ward.floor',
             'requestedServices', 'operations.procedure', 'deposits',
         ])->withCount('operations');
 
@@ -105,6 +108,28 @@ class AdmissionController extends Controller
         $admission = $this->admissionService->admit($request->validated(), $request->user());
 
         return response()->json($admission->load($this->showRelations()), Response::HTTP_CREATED);
+    }
+
+    public function register(RegisterAdmissionRequest $request): JsonResponse
+    {
+        $patient = Patient::query()->findOrFail($request->integer('patient_id'));
+        $admission = $this->admissionService->registerPatient($patient, $request->user());
+
+        return response()->json($admission->load($this->showRelations()), Response::HTTP_CREATED);
+    }
+
+    public function assignBed(AssignAdmissionBedRequest $request, Admission $admission): JsonResponse
+    {
+        $admission = $this->admissionService->assignBed($admission, $request->integer('bed_id'));
+
+        return response()->json($admission->load($this->showRelations()));
+    }
+
+    public function releaseBed(Admission $admission): JsonResponse
+    {
+        $admission = $this->admissionService->releaseBed($admission);
+
+        return response()->json($admission->load($this->showRelations()));
     }
 
     public function show(Admission $admission): JsonResponse

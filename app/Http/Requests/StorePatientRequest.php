@@ -26,6 +26,8 @@ class StorePatientRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:255'],
             'insurance_company_id' => ['nullable', 'integer', 'exists:insurance_companies,id'],
             'insurance_card_number' => ['nullable', 'string', 'max:100'],
+            'admitting_doctor_id' => ['nullable', 'integer', 'exists:doctors,id'],
+            'referred_by_doctor_id' => ['nullable', 'integer', 'exists:doctors,id'],
         ];
     }
 }

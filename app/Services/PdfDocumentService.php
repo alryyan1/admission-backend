@@ -7,6 +7,7 @@ use App\Models\AdmissionDeposit;
 use App\Models\Invoice;
 use App\Models\Operation;
 use App\Support\ArabicNumber;
+use App\Support\Pdf\Documents\AdmissionFilePdf;
 use App\Support\Pdf\Documents\DepositReceiptPdf;
 use App\Support\Pdf\Documents\OperationInvoicePdf;
 use Illuminate\Http\Response;
@@ -249,24 +250,24 @@ class PdfDocumentService
     public function admissionSummary(Admission $admission): Response
     {
         $admission->loadMissing([
-            'patient',
-            'admittingDoctor',
+            'patient.insuranceCompany',
+            'patient.admittingDoctor',
+            'patient.referredByDoctor',
+            'admittedBy',
             'bed.room.ward.floor',
             'requestedServices',
             'deposits.paymentMethod',
             'operations.procedure',
             'operations.surgeon',
-            'vitalSigns',
-            'doctorOrders.doses',
         ]);
 
         $statusLabels = ['admitted' => 'نشطة', 'discharged' => 'مخرّجة', 'cancelled' => 'ملغاة'];
         $genderLabels = ['male' => 'ذكر', 'female' => 'أنثى'];
-        $typeLabels = ['inpatient' => 'تنويم كامل', 'short_stay' => 'إقامة قصيرة'];
-        $orderStatusLabels = ['active' => 'نشط', 'discontinued' => 'موقوف'];
 
         $patient = $admission->patient;
+        $company = $patient?->insuranceCompany;
         $ward = $admission->bed?->room?->ward;
+        $notRecorded = 'لم تُسجَّل';
 
         $start = Carbon::parse($admission->admission_date);
         $end = $admission->discharge_date ? Carbon::parse($admission->discharge_date) : now();
@@ -277,175 +278,174 @@ class PdfDocumentService
         $depositsTotal = round((float) $admission->deposits->sum('amount'), 2);
         $balanceDue = round($servicesTotal + $operationsTotal - $depositsTotal, 2);
 
-        $pdf = $this->renderer->make('ملخص تنويم شامل', 'P', 'A4');
+        $factSections = [
+            [
+                'title' => 'بيانات المريض',
+                'rows' => [
+                    [
+                        ['label' => 'الاسم', 'value' => $patient?->name ?? '—'],
+                        ['label' => 'الجنس', 'value' => $patient?->gender ? ($genderLabels[$patient->gender] ?? $patient->gender) : '—'],
+                        ['label' => 'العمر', 'value' => $patient?->age_year !== null ? $patient->age_year.' سنة' : '—'],
+                    ],
+                    [
+                        ['label' => 'رقم المريض', 'value' => $patient ? '#'.$patient->id : '—'],
+                        ['label' => 'فصيلة الدم', 'value' => $patient?->blood_type ?? '—'],
+                        ['label' => 'الهاتف', 'value' => $patient?->phone ?? '—'],
+                    ],
+                    [
+                        ['label' => 'العنوان', 'value' => $patient?->address ?? '—', 'span' => 3],
+                    ],
+                ],
+            ],
+            [
+                'title' => 'جهة الاتصال في الطوارئ',
+                'rows' => [
+                    [
+                        ['label' => 'الاسم', 'value' => $patient?->emergency_contact_name ?? '—'],
+                        ['label' => 'صلة القرابة', 'value' => $patient?->emergency_contact_relationship ?? '—'],
+                        ['label' => 'الهاتف', 'value' => $patient?->emergency_contact_phone ?? '—'],
+                    ],
+                    [
+                        ['label' => 'العنوان', 'value' => $patient?->emergency_contact_address ?? '—', 'span' => 3],
+                    ],
+                ],
+            ],
+            [
+                'title' => 'التأمين الصحي',
+                'rows' => [
+                    [
+                        ['label' => 'شركة التأمين', 'value' => $company?->name ?? 'بدون تأمين'],
+                        ['label' => 'رقم البطاقة', 'value' => $patient?->insurance_card_number ?? '—'],
+                        ['label' => 'نسبة التغطية', 'value' => $company ? ((float) $company->coverage_percentage).'%' : '—'],
+                    ],
+                ],
+            ],
+            [
+                'title' => 'بيانات التنويم',
+                'rows' => [
+                    [
+                        ['label' => 'رقم التنويم', 'value' => (string) ($admission->admission_number ?? '—')],
+                        ['label' => 'نوع الدخول', 'value' => Admission::ENTRY_TYPES[$admission->entry_type] ?? '—'],
+                        ['label' => 'الحالة', 'value' => $statusLabels[$admission->status] ?? $admission->status],
+                    ],
+                    [
+                        ['label' => 'تاريخ الدخول', 'value' => $this->dateTime($admission->admission_date)],
+                        ['label' => 'تاريخ الخروج', 'value' => $admission->discharge_date ? $this->dateTime($admission->discharge_date) : '—'],
+                        ['label' => 'مدة الإقامة', 'value' => $stayDays.' '.($stayDays === 1 ? 'يوم' : 'أيام')],
+                    ],
+                    [
+                        ['label' => 'الطابق', 'value' => $ward?->floor?->name ?? '—'],
+                        ['label' => 'القسم', 'value' => $ward?->name ?? '—'],
+                        ['label' => 'الغرفة / السرير', 'value' => ($admission->bed?->room?->room_number ?? '—').' / '.($admission->bed?->bed_number ?? '—')],
+                    ],
+                    [
+                        ['label' => 'الطبيب المعالج', 'value' => $admission->patient?->admittingDoctor?->name ?? '—'],
+                        ['label' => 'الطبيب المحيل', 'value' => $admission->patient?->referredByDoctor?->name ?? '—'],
+                        ['label' => 'أُدخل بواسطة', 'value' => $admission->admittedBy?->name ?? '—'],
+                    ],
+                    ...($admission->entry_type === Admission::ENTRY_TYPE_HOSPITAL_TRANSFER ? [[
+                        ['label' => 'المستشفى المحوِّل', 'value' => $admission->referring_hospital_name ?? '—', 'span' => 3],
+                    ]] : []),
+                ],
+            ],
+            [
+                'title' => 'التاريخ الطبي',
+                'rows' => [
+                    [
+                        ['label' => 'الحساسية', 'value' => $patient?->allergies ?? $notRecorded, 'span' => 3, 'alert' => true],
+                    ],
+                    [
+                        ['label' => 'الأمراض المزمنة', 'value' => $patient?->chronic_diseases ?? $notRecorded],
+                        ['label' => 'الأدوية الحالية', 'value' => $patient?->current_medications ?? $notRecorded],
+                        ['label' => 'العمليات الجراحية السابقة', 'value' => $patient?->past_surgeries ?? $notRecorded],
+                    ],
+                    [
+                        ['label' => 'التاريخ المرضي', 'value' => $patient?->medical_history ?? $notRecorded, 'span' => 3],
+                    ],
+                ],
+            ],
+            [
+                'title' => 'التشخيص',
+                'rows' => [
+                    [
+                        ['label' => 'التشخيص', 'value' => $admission->diagnosis ?? $notRecorded, 'span' => 3],
+                    ],
+                    [
+                        ['label' => 'ملاحظات الدخول', 'value' => $admission->admission_notes ?? '—', 'span' => 3],
+                    ],
+                ],
+            ],
+        ];
 
-        $pdf->metaRow(
-            'المريض: '.($patient?->name ?? '—'),
-            'رقم التنويم: #'.$admission->id,
-            'تاريخ الإصدار: '.$this->dateTime(now())
-        );
-        $pdf->spacing(3);
+        $tables = [
+            [
+                'title' => 'العمليات الجراحية',
+                'headings' => ['رقم العملية', 'الإجراء', 'الجراح', 'السعر', 'تاريخ العملية'],
+                'ratios' => [0.14, 0.34, 0.20, 0.14, 0.18],
+                'rows' => $admission->operations->map(fn ($operation) => [
+                    (string) ($operation->operation_number ?? '—'),
+                    $operation->procedure?->name_ar ?? '—',
+                    $operation->surgeon?->name ?? '—',
+                    $operation->price !== null ? $this->amount($operation->price) : '—',
+                    $operation->scheduled_at ? $this->dateTime($operation->scheduled_at) : '—',
+                ])->values()->all(),
+                'empty' => 'لا توجد عمليات مجدولة',
+            ],
+            [
+                'title' => 'الخدمات المطلوبة',
+                'headings' => ['الخدمة', 'الكمية', 'سعر الوحدة', 'الإجمالي'],
+                'ratios' => [0.42, 0.12, 0.22, 0.24],
+                'rows' => $admission->requestedServices->map(fn ($service) => [
+                    $service->name,
+                    (string) $service->quantity,
+                    $this->amount($service->unit_price),
+                    $this->amount($service->total_price),
+                ])->values()->all(),
+                'empty' => 'لا توجد خدمات مطلوبة',
+            ],
+            [
+                'title' => 'الدفعات',
+                'headings' => ['التاريخ', 'طريقة الدفع', 'المبلغ'],
+                'ratios' => [0.22, 0.40, 0.38],
+                'rows' => $admission->deposits->map(fn ($deposit) => [
+                    $this->date($deposit->paid_at),
+                    $deposit->paymentMethod?->name ?? '—',
+                    $this->amount($deposit->amount),
+                ])->values()->all(),
+                'empty' => 'لا توجد دفعات مسجلة',
+            ],
+        ];
 
-        $cw = $pdf->contentWidth();
-        $w3 = $cw / 3;
-
-        $pdf->sectionTitle('بيانات المريض');
-        $pdf->tableRow([
-            'الاسم: '.($patient?->name ?? '—'),
-            'النوع: '.($patient?->gender ? ($genderLabels[$patient->gender] ?? $patient->gender) : '—'),
-            'العمر: '.($patient?->age_year !== null ? $patient->age_year.' سنة' : '—'),
-        ], [$w3, $w3, $w3]);
-        $pdf->tableRow([
-            'فصيلة الدم: '.($patient?->blood_type ?? '—'),
-            'الهاتف: '.($patient?->phone ?? '—'),
-            'العنوان: '.($patient?->address ?? '—'),
-        ], [$w3, $w3, $w3]);
-
-        $pdf->sectionTitle('بيانات التنويم');
-        $pdf->tableRow([
-            'رقم التنويم: '.($admission->admission_number ?? '—'),
-            'الحالة: '.($statusLabels[$admission->status] ?? $admission->status),
-            'نوع التنويم: '.($admission->admission_type ? ($typeLabels[$admission->admission_type] ?? $admission->admission_type) : '—'),
-        ], [$w3, $w3, $w3]);
-        $pdf->tableRow([
-            'تاريخ الدخول: '.$this->dateTime($admission->admission_date),
-            'تاريخ الخروج: '.($admission->discharge_date ? $this->dateTime($admission->discharge_date) : '—'),
-            'مدة الإقامة: '.$stayDays.' '.($stayDays === 1 ? 'يوم' : 'أيام'),
-        ], [$w3, $w3, $w3]);
-        $pdf->tableRow([
-            'الطابق: '.($ward?->floor?->name ?? '—'),
-            'القسم: '.($ward?->name ?? '—'),
-            'الغرفة / السرير: '.($admission->bed?->room?->room_number ?? '—').' / '.($admission->bed?->bed_number ?? '—'),
-        ], [$w3, $w3, $w3]);
-        $pdf->tableRow([
-            'الطبيب المعالج: '.($admission->admittingDoctor?->name ?? '—'),
-            'التشخيص: '.($admission->diagnosis ?? '—'),
-        ], [$w3, $w3 * 2]);
-
+        $notes = [];
         if ($admission->discharge_summary && $admission->status === 'discharged') {
-            $pdf->wordsBlock('ملخص الخروج', $admission->discharge_summary);
+            $notes[] = ['label' => 'ملخص الخروج', 'text' => $admission->discharge_summary];
         }
         if ($admission->cancellation_reason && $admission->status === 'cancelled') {
-            $pdf->wordsBlock('سبب الإلغاء', $admission->cancellation_reason);
+            $notes[] = ['label' => 'سبب الإلغاء', 'text' => $admission->cancellation_reason];
         }
 
-        $pdf->sectionTitle('العلامات الحيوية');
-        $vitalWidths = [$cw * 0.20, $cw * 0.13, $cw * 0.13, $cw * 0.14, $cw * 0.18, $cw * 0.22];
-        $pdf->tableHeader([
-            ['label' => 'الوقت', 'width' => $vitalWidths[0]],
-            ['label' => 'الحرارة', 'width' => $vitalWidths[1]],
-            ['label' => 'النبض', 'width' => $vitalWidths[2]],
-            ['label' => 'التنفس', 'width' => $vitalWidths[3]],
-            ['label' => 'ضغط الدم', 'width' => $vitalWidths[4]],
-            ['label' => 'الأكسجين', 'width' => $vitalWidths[5]],
-        ]);
-        if ($admission->vitalSigns->isEmpty()) {
-            $pdf->tableEmptyRow('لا توجد تسجيلات علامات حيوية');
-        }
-        foreach ($admission->vitalSigns as $vital) {
-            $pdf->tableRow([
-                $this->dateTime($vital->recorded_at),
-                (string) ($vital->temperature ?? '—'),
-                (string) ($vital->pulse ?? '—'),
-                (string) ($vital->respiration_rate ?? '—'),
-                (string) ($vital->blood_pressure ?? '—'),
-                $vital->oxygen_saturation !== null ? $vital->oxygen_saturation.'%' : '—',
-            ], $vitalWidths);
-        }
-
-        $pdf->sectionTitle('أوامر الأطباء');
-        $orderWidths = [$cw * 0.40, $cw * 0.18, $cw * 0.18, $cw * 0.12, $cw * 0.12];
-        $pdf->tableHeader([
-            ['label' => 'الأمر / الدواء', 'width' => $orderWidths[0]],
-            ['label' => 'التكرار', 'width' => $orderWidths[1]],
-            ['label' => 'طريقة الإعطاء', 'width' => $orderWidths[2]],
-            ['label' => 'الحالة', 'width' => $orderWidths[3]],
-            ['label' => 'الجرعات', 'width' => $orderWidths[4]],
-        ]);
-        if ($admission->doctorOrders->isEmpty()) {
-            $pdf->tableEmptyRow('لا توجد أوامر طبية');
-        }
-        foreach ($admission->doctorOrders as $order) {
-            $pdf->tableRow([
-                $order->order_text,
-                $order->frequency ?? '—',
-                $order->route ?? '—',
-                $orderStatusLabels[$order->status] ?? $order->status,
-                (string) $order->doses->count(),
-            ], $orderWidths);
-        }
-
-        $pdf->sectionTitle('العمليات الجراحية');
-        $opWidths = [$cw * 0.14, $cw * 0.34, $cw * 0.20, $cw * 0.14, $cw * 0.18];
-        $pdf->tableHeader([
-            ['label' => 'رقم العملية', 'width' => $opWidths[0]],
-            ['label' => 'الإجراء', 'width' => $opWidths[1]],
-            ['label' => 'الجراح', 'width' => $opWidths[2]],
-            ['label' => 'السعر', 'width' => $opWidths[3]],
-            ['label' => 'تاريخ العملية', 'width' => $opWidths[4]],
-        ]);
-        if ($admission->operations->isEmpty()) {
-            $pdf->tableEmptyRow('لا توجد عمليات مجدولة');
-        }
-        foreach ($admission->operations as $operation) {
-            $pdf->tableRow([
-                (string) ($operation->operation_number ?? '—'),
-                $operation->procedure?->name_ar ?? '—',
-                $operation->surgeon?->name ?? '—',
-                $operation->price !== null ? $this->money($operation->price) : '—',
-                $operation->scheduled_at ? $this->dateTime($operation->scheduled_at) : '—',
-            ], $opWidths);
-        }
-
-        $pdf->sectionTitle('الخدمات المطلوبة');
-        $svcWidths = [$cw * 0.42, $cw * 0.12, $cw * 0.22, $cw * 0.24];
-        $pdf->tableHeader([
-            ['label' => 'الخدمة', 'width' => $svcWidths[0]],
-            ['label' => 'الكمية', 'width' => $svcWidths[1]],
-            ['label' => 'سعر الوحدة', 'width' => $svcWidths[2]],
-            ['label' => 'الإجمالي', 'width' => $svcWidths[3]],
-        ]);
-        if ($admission->requestedServices->isEmpty()) {
-            $pdf->tableEmptyRow('لا توجد خدمات مطلوبة');
-        }
-        foreach ($admission->requestedServices as $service) {
-            $pdf->tableRow([
-                $service->name,
-                (string) $service->quantity,
-                $this->money($service->unit_price),
-                $this->money($service->total_price),
-            ], $svcWidths);
-        }
-
-        $pdf->sectionTitle('الدفعات');
-        $depWidths = [$cw * 0.22, $cw * 0.40, $cw * 0.38];
-        $pdf->tableHeader([
-            ['label' => 'التاريخ', 'width' => $depWidths[0]],
-            ['label' => 'طريقة الدفع', 'width' => $depWidths[1]],
-            ['label' => 'المبلغ', 'width' => $depWidths[2]],
-        ]);
-        if ($admission->deposits->isEmpty()) {
-            $pdf->tableEmptyRow('لا توجد دفعات مسجلة');
-        }
-        foreach ($admission->deposits as $deposit) {
-            $pdf->tableRow([
-                $this->date($deposit->paid_at),
-                $deposit->paymentMethod?->name ?? '—',
-                $this->money($deposit->amount),
-            ], $depWidths);
-        }
-
-        $totalsRows = [
-            ['label' => 'إجمالي الخدمات', 'value' => $this->money($servicesTotal)],
+        $totals = [
+            ['label' => 'إجمالي الخدمات', 'value' => $this->amount($servicesTotal)],
         ];
         if ($operationsTotal > 0) {
-            $totalsRows[] = ['label' => 'إجمالي العمليات', 'value' => $this->money($operationsTotal)];
+            $totals[] = ['label' => 'إجمالي العمليات', 'value' => $this->amount($operationsTotal)];
         }
-        $totalsRows[] = ['label' => 'إجمالي الدفعات', 'value' => $this->money($depositsTotal)];
-        $totalsRows[] = ['label' => 'الرصيد المستحق', 'value' => $this->money($balanceDue), 'bold' => true, 'big' => true];
-        $pdf->totalsBlock($totalsRows);
+        $totals[] = ['label' => 'إجمالي الدفعات', 'value' => $this->amount($depositsTotal)];
+        $totals[] = ['label' => 'الرصيد المستحق', 'value' => $this->amount($balanceDue), 'bold' => true];
 
-        return $this->renderer->toResponse($pdf, "admission-summary-{$admission->id}.pdf", false);
+        $pdf = (new AdmissionFilePdf)->render(
+            patientName: $patient?->name ?? '—',
+            fileNumber: (string) $admission->id,
+            issuedAt: $this->dateTime(now()),
+            factSections: $factSections,
+            tables: $tables,
+            notes: $notes,
+            totals: $totals,
+            balanceWords: $balanceDue > 0 ? ArabicNumber::amountToWords($balanceDue) : null,
+            signatories: ['الطبيب المعالج', 'موظف الاستقبال', 'المريض / ولي الأمر'],
+        );
+
+        return $this->renderer->toResponse($pdf, "admission-file-{$admission->id}.pdf", false);
     }
 
     public function revenueCalculator(Carbon $date, ?string $generatedBy, ?int $userId = null, ?string $userName = null): Response
@@ -607,6 +607,11 @@ class PdfDocumentService
         $pdf->wordsBlock('المبلغ كتابة', $totalWords);
 
         return $this->renderer->toResponse($pdf, $filename);
+    }
+
+    private function amount(float|string|null $value): string
+    {
+        return number_format((float) $value, 2, '.', ',');
     }
 
     private function money(float|string|null $value): string

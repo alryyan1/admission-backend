@@ -13,7 +13,7 @@ class AdmissionCancellationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admitting_a_patient_generates_an_admission_number_and_type(): void
+    public function test_admitting_a_patient_generates_an_admission_number_without_an_entry_type(): void
     {
         $user = User::factory()->create();
         $patient = Patient::factory()->create();
@@ -25,7 +25,7 @@ class AdmissionCancellationTest extends TestCase
         ]);
 
         $response->assertCreated();
-        $response->assertJsonPath('admission_type', 'inpatient');
+        $response->assertJsonPath('entry_type', null);
         $this->assertMatchesRegularExpression('/^\d+$/', $response->json('admission_number'));
     }
 
@@ -55,7 +55,7 @@ class AdmissionCancellationTest extends TestCase
         $nextDay->assertJsonPath('admission_number', '1');
     }
 
-    public function test_admitting_to_any_bed_sets_inpatient_admission_type(): void
+    public function test_admitting_without_an_entry_type_leaves_it_unset(): void
     {
         $user = User::factory()->create();
         $room = Room::factory()->create();
@@ -66,7 +66,7 @@ class AdmissionCancellationTest extends TestCase
             'bed_id' => $bed->id,
         ]);
 
-        $response->assertCreated()->assertJsonPath('admission_type', 'inpatient');
+        $response->assertCreated()->assertJsonPath('entry_type', null);
     }
 
     public function test_cancelling_an_admission_frees_the_bed(): void

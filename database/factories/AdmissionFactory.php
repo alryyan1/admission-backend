@@ -24,4 +24,9 @@ class AdmissionFactory extends Factory
             'admission_notes' => fake()->sentence(),
         ];
     }
+
+    public function withoutBed(): static
+    {
+        return $this->state(fn (): array => ['bed_id' => null]);
+    }
 }

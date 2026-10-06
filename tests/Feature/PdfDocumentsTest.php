@@ -162,6 +162,38 @@ class PdfDocumentsTest extends TestCase
         );
     }
 
+    public function test_admission_summary_pdf_paginates_long_sections_and_shows_discharge_summary(): void
+    {
+        $user = User::factory()->create();
+        $admission = $this->admissionWithActivity();
+        $admission->update([
+            'status' => 'discharged',
+            'discharge_date' => now(),
+            'discharge_summary' => 'تحسن المريض وخرج بحالة مستقرة.',
+        ]);
+        $admission->requestedServices()->createMany(
+            array_fill(0, 80, ['name' => 'خدمة تجريبية', 'quantity' => 1, 'unit_price' => 1000])
+        );
+
+        $response = $this->actingAs($user, 'sanctum')->get("/api/admissions/{$admission->id}/summary.pdf");
+
+        $this->assertPdf($response);
+        $this->assertGreaterThan(1, preg_match_all('/\/Type\s*\/Page[^s]/', $response->getContent()));
+    }
+
+    public function test_admission_summary_pdf_for_cancelled_admission_without_activity(): void
+    {
+        $user = User::factory()->create();
+        $admission = Admission::factory()->create([
+            'status' => 'cancelled',
+            'cancellation_reason' => 'رفض المريض الدخول',
+        ]);
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get("/api/admissions/{$admission->id}/summary.pdf")
+        );
+    }
+
     public function test_operation_invoice_pdf(): void
     {
         $user = User::factory()->create();

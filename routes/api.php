@@ -119,6 +119,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('admissions', AdmissionController::class)->only(['index', 'show']);
     Route::post('/admissions', [AdmissionController::class, 'store'])->middleware('role:admin,admission_clerk');
+    Route::post('/admissions/register', [AdmissionController::class, 'register'])->middleware('role:admin,admission_clerk');
+    Route::patch('/admissions/{admission}/bed', [AdmissionController::class, 'assignBed'])->middleware('role:admin,admission_clerk');
+    Route::delete('/admissions/{admission}/bed', [AdmissionController::class, 'releaseBed'])->middleware('role:admin,admission_clerk');
     Route::patch('/admissions/{admission}', [AdmissionController::class, 'update'])->middleware('role:admin,admission_clerk,doctor');
     Route::patch('/admissions/{admission}/discharge', [AdmissionController::class, 'discharge'])->middleware('role:admin,doctor');
     Route::patch('/admissions/{admission}/cancel', [AdmissionController::class, 'cancel'])->middleware('role:admin,admission_clerk');

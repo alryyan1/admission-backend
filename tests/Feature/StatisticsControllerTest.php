@@ -8,6 +8,7 @@ use App\Models\Bed;
 use App\Models\Doctor;
 use App\Models\Invoice;
 use App\Models\Operation;
+use App\Models\Patient;
 use App\Models\Procedure;
 use App\Models\RequestedService;
 use App\Models\Specialist;
@@ -91,7 +92,8 @@ class StatisticsControllerTest extends TestCase
     {
         $user = User::factory()->create();
         $doctor = Doctor::factory()->create(['name' => 'د. أحمد سالم', 'specialist_id' => Specialist::factory()->create(['name' => 'باطنية'])->id]);
-        $admission = Admission::factory()->create(['admitting_doctor_id' => $doctor->id, 'admission_date' => now()]);
+        $patient = Patient::factory()->create(['admitting_doctor_id' => $doctor->id]);
+        $admission = Admission::factory()->create(['patient_id' => $patient->id, 'admission_date' => now()]);
         RequestedService::factory()->for($admission)->create(['name' => 'أشعة', 'quantity' => 2, 'unit_price' => 5000]);
         $procedure = Procedure::factory()->create(['name_ar' => 'استئصال المرارة']);
         Operation::factory()->for($admission)->create(['procedure_id' => $procedure->id, 'price' => 120000]);

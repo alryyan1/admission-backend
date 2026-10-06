@@ -61,6 +61,12 @@ class RequestedServiceController extends Controller
     {
         $admission->assertMutable($request->user());
 
+        if ($admission->bed === null) {
+            throw ValidationException::withMessages([
+                'bed_id' => ['لا يمكن إضافة رسوم الإقامة قبل تعيين سرير للتنويم.'],
+            ]);
+        }
+
         $room = $admission->bed->loadMissing('room')->room;
 
         if (! $room->price_per_day) {

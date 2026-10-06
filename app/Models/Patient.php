@@ -24,6 +24,8 @@ class Patient extends Model
         'address',
         'insurance_company_id',
         'insurance_card_number',
+        'admitting_doctor_id',
+        'referred_by_doctor_id',
         'is_local_only',
         'emergency_contact_name',
         'emergency_contact_relationship',
@@ -50,6 +52,16 @@ class Patient extends Model
     public function insuranceCompany(): BelongsTo
     {
         return $this->belongsTo(InsuranceCompany::class);
+    }
+
+    public function admittingDoctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class, 'admitting_doctor_id');
+    }
+
+    public function referredByDoctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class, 'referred_by_doctor_id');
     }
 
     public function getActivitylogOptions(): LogOptions

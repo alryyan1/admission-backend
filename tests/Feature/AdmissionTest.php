@@ -133,31 +133,45 @@ class AdmissionTest extends TestCase
         $response->assertUnprocessable();
     }
 
-    public function test_admission_clerk_can_update_admitting_and_referring_doctors(): void
+    public function test_admission_exposes_the_patients_admitting_and_referring_doctors(): void
+    {
+        $clerk = User::factory()->role('admission_clerk')->create();
+        $admittingDoctor = Doctor::factory()->create();
+        $referringDoctor = Doctor::factory()->create();
+        $patient = Patient::factory()->create([
+            'admitting_doctor_id' => $admittingDoctor->id,
+            'referred_by_doctor_id' => $referringDoctor->id,
+        ]);
+        $bed = Bed::factory()->create(['status' => 'available']);
+
+        $response = $this->actingAs($clerk, 'sanctum')
+            ->postJson('/api/admissions', [
+                'patient_id' => $patient->id,
+                'bed_id' => $bed->id,
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('patient.admitting_doctor.id', $admittingDoctor->id)
+            ->assertJsonPath('patient.referred_by_doctor.id', $referringDoctor->id)
+            ->assertJsonMissingPath('admitting_doctor_id');
+    }
+
+    public function test_admission_rejects_doctor_fields_now_stored_on_the_patient(): void
     {
         $clerk = User::factory()->role('admission_clerk')->create();
         $patient = Patient::factory()->create();
         $bed = Bed::factory()->create(['status' => 'available']);
-        $admittingDoctor = Doctor::factory()->create();
-        $referringDoctor = Doctor::factory()->create();
 
-        $admission = $this->actingAs($clerk, 'sanctum')
+        $this->actingAs($clerk, 'sanctum')
             ->postJson('/api/admissions', [
                 'patient_id' => $patient->id,
                 'bed_id' => $bed->id,
-            ])->json();
+                'admitting_doctor_id' => Doctor::factory()->create()->id,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('patient.admitting_doctor', null);
 
-        $response = $this->actingAs($clerk, 'sanctum')
-            ->patchJson("/api/admissions/{$admission['id']}", [
-                'admitting_doctor_id' => $admittingDoctor->id,
-                'referred_by_doctor_id' => $referringDoctor->id,
-                'diagnosis' => 'التهاب رئوي',
-            ]);
-
-        $response->assertOk()
-            ->assertJsonPath('admitting_doctor.id', $admittingDoctor->id)
-            ->assertJsonPath('referred_by_doctor.id', $referringDoctor->id)
-            ->assertJsonPath('diagnosis', 'التهاب رئوي');
+        $this->assertNull($patient->refresh()->admitting_doctor_id);
     }
 
     public function test_non_admin_cannot_update_a_discharged_admission(): void

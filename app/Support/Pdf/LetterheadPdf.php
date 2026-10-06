@@ -513,7 +513,7 @@ class LetterheadPdf extends TCPDF
             return null;
         }
 
-        return $path;
+        return app(PdfImageCache::class)->resolve($path);
     }
 
     /**

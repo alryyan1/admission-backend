@@ -26,6 +26,8 @@ class UpdatePatientRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:255'],
             'insurance_company_id' => ['sometimes', 'nullable', 'integer', 'exists:insurance_companies,id'],
             'insurance_card_number' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'admitting_doctor_id' => ['sometimes', 'nullable', 'integer', 'exists:doctors,id'],
+            'referred_by_doctor_id' => ['sometimes', 'nullable', 'integer', 'exists:doctors,id'],
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
             'emergency_contact_relationship' => ['nullable', 'string', 'max:100'],
             'emergency_contact_phone' => ['nullable', 'string', 'max:50'],
