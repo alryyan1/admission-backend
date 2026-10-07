@@ -29,5 +29,7 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="WHATSAPP_PHONE_NUMBER_ID" value=""/>
+        <env name="WHATSAPP_ACCESS_TOKEN" value=""/>
     </php>
 </phpunit>

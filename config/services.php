@@ -38,11 +38,20 @@ return [
     'whatsapp' => [
         'api_version' => env('WHATSAPP_API_VERSION', 'v21.0'),
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
+        'waba_id' => env('WHATSAPP_WABA_ID'),
         'access_token' => env('WHATSAPP_ACCESS_TOKEN'),
         'default_country_code' => env('WHATSAPP_DEFAULT_COUNTRY_CODE', '20'),
         'admission_template' => [
             'name' => env('WHATSAPP_ADMISSION_TEMPLATE_NAME', 'admission_created'),
             'language' => env('WHATSAPP_ADMISSION_TEMPLATE_LANGUAGE', 'ar'),
+        ],
+        'reminder_template' => [
+            'name' => env('WHATSAPP_REMINDER_TEMPLATE_NAME', 'admission_reminder'),
+            'language' => env('WHATSAPP_REMINDER_TEMPLATE_LANGUAGE', 'ar'),
+        ],
+        'doctor_admission_template' => [
+            'name' => env('WHATSAPP_DOCTOR_ADMISSION_TEMPLATE_NAME', 'admission_doctor_notice'),
+            'language' => env('WHATSAPP_DOCTOR_ADMISSION_TEMPLATE_LANGUAGE', 'ar'),
         ],
     ],
 

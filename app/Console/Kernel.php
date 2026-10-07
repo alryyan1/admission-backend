@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('backup:run --only-db')->daily()->at('02:00');
         $schedule->command('backup:clean')->daily()->at('02:30');
+        $schedule->command('whatsapp:send-admission-reminders')->daily()->at('08:00');
     }
 
     /**

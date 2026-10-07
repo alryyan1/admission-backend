@@ -10,9 +10,11 @@ use App\Http\Requests\RegisterAdmissionRequest;
 use App\Http\Requests\StoreAdmissionRequest;
 use App\Http\Requests\UpdateAdmissionRequest;
 use App\Models\Admission;
+use App\Models\FacilitySetting;
 use App\Models\Patient;
 use App\Services\AdmissionService;
 use App\Services\InvoiceService;
+use App\Services\WhatsAppService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -103,11 +105,58 @@ class AdmissionController extends Controller
         return response()->json($admissions);
     }
 
-    public function store(StoreAdmissionRequest $request): JsonResponse
+    public function store(StoreAdmissionRequest $request, WhatsAppService $whatsApp): JsonResponse
     {
         $admission = $this->admissionService->admit($request->validated(), $request->user());
+        $admission->load($this->showRelations());
+        $admission->whatsapp_doctor_notice = $this->sendDoctorAdmissionNotice($admission, $whatsApp);
 
-        return response()->json($admission->load($this->showRelations()), Response::HTTP_CREATED);
+        return response()->json($admission, Response::HTTP_CREATED);
+    }
+
+    /**
+     * Sends the admission_doctor_notice WhatsApp template to the patient's referring doctor,
+     * synchronously, so the admission response can report the outcome for an immediate toast.
+     *
+     * @return array{sent: bool, message: string}
+     */
+    private function sendDoctorAdmissionNotice(Admission $admission, WhatsAppService $whatsApp): array
+    {
+        $doctor = $admission->patient?->referredByDoctor;
+
+        if (! $doctor || blank($doctor->phone)) {
+            return ['sent' => false, 'message' => 'لا يوجد رقم واتساب مسجل للطبيب المحوِّل.'];
+        }
+
+        if (! $whatsApp->isConfigured()) {
+            return ['sent' => false, 'message' => 'خدمة واتساب غير مُفعّلة.'];
+        }
+
+        $room = $admission->bed
+            ? $admission->bed->room->room_number.' / '.$admission->bed->bed_number
+            : '-';
+
+        try {
+            $whatsApp->sendTemplate(
+                toPhone: $doctor->phone,
+                templateName: (string) config('services.whatsapp.doctor_admission_template.name'),
+                languageCode: (string) config('services.whatsapp.doctor_admission_template.language'),
+                bodyParameters: [
+                    ['type' => 'text', 'text' => FacilitySetting::current()->name],
+                    ['type' => 'text', 'text' => $doctor->name],
+                    ['type' => 'text', 'text' => $admission->patient->name],
+                    ['type' => 'text', 'text' => $admission->bed?->room?->ward?->floor?->name ?? '-'],
+                    ['type' => 'text', 'text' => $admission->bed?->room?->ward?->name ?? '-'],
+                    ['type' => 'text', 'text' => $room],
+                    ['type' => 'text', 'text' => $admission->admission_date->format('Y-m-d')],
+                    ['type' => 'text', 'text' => $admission->admission_date->format('G:i')],
+                ],
+            );
+
+            return ['sent' => true, 'message' => 'تم إرسال إشعار واتساب للطبيب المحوِّل بنجاح.'];
+        } catch (\Throwable $exception) {
+            return ['sent' => false, 'message' => 'تعذر إرسال إشعار واتساب للطبيب المحوِّل: '.$exception->getMessage()];
+        }
     }
 
     public function register(RegisterAdmissionRequest $request): JsonResponse

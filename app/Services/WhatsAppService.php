@@ -35,6 +35,28 @@ class WhatsAppService
     }
 
     /**
+     * Fetches the display number and verification status of the configured
+     * sender from the Graph API, so the settings page can show which number
+     * messages are actually sent from.
+     *
+     * @return array{display_phone_number?: string, verified_name?: string, quality_rating?: string}
+     */
+    public function getPhoneNumberInfo(): array
+    {
+        if (! $this->isConfigured()) {
+            throw new \RuntimeException('WhatsApp Cloud API is not configured (missing phone_number_id or access_token).');
+        }
+
+        return Http::withToken($this->accessToken)
+            ->acceptJson()
+            ->get("https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}", [
+                'fields' => 'display_phone_number,verified_name,quality_rating',
+            ])
+            ->throw()
+            ->json();
+    }
+
+    /**
      * @param  array<int, array<string, mixed>>  $bodyParameters  e.g. [['type' => 'text', 'text' => 'Ahmed']]
      */
     public function sendTemplate(

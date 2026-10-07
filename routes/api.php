@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DailyRevenueReportController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\DoctorEntitlementsReportController;
 use App\Http\Controllers\Api\DoctorOrderController;
+use App\Http\Controllers\Api\DoctorRevenueReportController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FacilitySettingController;
 use App\Http\Controllers\Api\FloorController;
@@ -40,6 +41,7 @@ use App\Http\Controllers\Api\TreatmentDoseController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VitalSignController;
 use App\Http\Controllers\Api\WardController;
+use App\Http\Controllers\Api\WhatsAppSettingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -115,6 +117,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/settings/facility/logo', [FacilitySettingController::class, 'logo']);
         Route::get('/settings/facility/stamp', [FacilitySettingController::class, 'stamp']);
         Route::get('/settings/facility/watermark', [FacilitySettingController::class, 'watermark']);
+
+        Route::get('/settings/whatsapp', [WhatsAppSettingController::class, 'show']);
+        Route::post('/settings/whatsapp/test', [WhatsAppSettingController::class, 'sendTest']);
     });
 
     Route::apiResource('admissions', AdmissionController::class)->only(['index', 'show']);
@@ -178,6 +183,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/revenue-calculator.pdf', [PdfController::class, 'revenueCalculator']);
     Route::get('/reports/daily-revenue', [DailyRevenueReportController::class, 'index'])->middleware('role:admin,cashier');
     Route::get('/reports/doctor-entitlements', [DoctorEntitlementsReportController::class, 'index'])->middleware('role:admin,cashier');
+    Route::get('/reports/doctor-revenue', [DoctorRevenueReportController::class, 'index'])->middleware('role:admin,cashier');
     Route::get('/reports/payments', [PaymentsReportController::class, 'index'])->middleware('role:admin,cashier');
     Route::get('/reports/payments/recorders', [PaymentsReportController::class, 'recorders'])->middleware('role:admin,cashier');
     Route::get('/reports/payments.pdf', [PdfController::class, 'paymentsReport'])->middleware('role:admin,cashier');
