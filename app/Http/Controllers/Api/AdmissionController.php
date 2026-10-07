@@ -167,11 +167,13 @@ class AdmissionController extends Controller
         return response()->json($admission->load($this->showRelations()), Response::HTTP_CREATED);
     }
 
-    public function assignBed(AssignAdmissionBedRequest $request, Admission $admission): JsonResponse
+    public function assignBed(AssignAdmissionBedRequest $request, Admission $admission, WhatsAppService $whatsApp): JsonResponse
     {
         $admission = $this->admissionService->assignBed($admission, $request->integer('bed_id'));
+        $admission->load($this->showRelations());
+        $admission->whatsapp_doctor_notice = $this->sendDoctorAdmissionNotice($admission, $whatsApp);
 
-        return response()->json($admission->load($this->showRelations()));
+        return response()->json($admission);
     }
 
     public function releaseBed(Admission $admission): JsonResponse
