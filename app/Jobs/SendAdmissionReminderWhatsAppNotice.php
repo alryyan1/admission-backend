@@ -21,9 +21,9 @@ class SendAdmissionReminderWhatsAppNotice implements ShouldQueue
 
     public function handle(WhatsAppService $whatsApp): void
     {
-        $this->admission->loadMissing(['patient.admittingDoctor', 'bed.room']);
+        $this->admission->loadMissing(['patient.referredByDoctor', 'bed.room']);
 
-        $phone = $this->admission->patient?->admittingDoctor?->phone;
+        $phone = $this->admission->patient?->referredByDoctor?->phone;
 
         if (blank($phone) || ! $whatsApp->isConfigured()) {
             return;

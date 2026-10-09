@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\WhatsAppRecipient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -84,5 +85,46 @@ class WhatsAppSettingTest extends TestCase
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/settings/whatsapp');
 
         $response->assertForbidden();
+    }
+
+    public function test_admin_can_list_add_and_remove_whatsapp_recipients(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/settings/whatsapp/recipients', ['phone' => '01012345678', 'label' => 'الإدارة'])
+            ->assertCreated()
+            ->assertJsonPath('phone', '01012345678');
+
+        $recipient = WhatsAppRecipient::sole();
+
+        $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/settings/whatsapp/recipients')
+            ->assertOk()
+            ->assertJsonCount(1);
+
+        $this->actingAs($admin, 'sanctum')
+            ->deleteJson("/api/settings/whatsapp/recipients/{$recipient->id}")
+            ->assertNoContent();
+
+        $this->assertDatabaseCount('whats_app_recipients', 0);
+    }
+
+    public function test_adding_a_duplicate_whatsapp_recipient_phone_is_rejected(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        WhatsAppRecipient::factory()->create(['phone' => '01012345678']);
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/settings/whatsapp/recipients', ['phone' => '01012345678'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone']);
+    }
+
+    public function test_non_admin_cannot_manage_whatsapp_recipients(): void
+    {
+        $user = User::factory()->create(['role' => 'nurse']);
+
+        $this->actingAs($user, 'sanctum')->getJson('/api/settings/whatsapp/recipients')->assertForbidden();
     }
 }

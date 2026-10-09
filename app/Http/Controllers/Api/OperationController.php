@@ -56,27 +56,20 @@ class OperationController extends Controller
 
     public function all(Request $request): JsonResponse
     {
-        $query = Operation::with($this->listRelations());
+        $query = $this->operationService->filteredQuery($request)->with($this->listRelations());
 
-        if ($request->filled('surgeon_id')) {
-            $query->where('surgeon_id', $request->integer('surgeon_id'));
-        }
-
-        if ($request->filled('date')) {
-            $query->whereDate('scheduled_at', $request->date('date'));
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->string('search');
-            $query->where(function ($q) use ($search) {
-                $q->whereHas('procedure', fn ($p) => $p->where('name_ar', 'like', "%{$search}%")->orWhere('name_en', 'like', "%{$search}%"))
-                    ->orWhereHas('admission.patient', fn ($p) => $p->where('name', 'like', "%{$search}%"));
-            });
-        }
+        $priceTotal = (float) (clone $query)->sum('price');
+        $entitlementsTotal = (float) OperationTeamMember::query()
+            ->whereIn('operation_id', (clone $query)->select('id'))
+            ->sum('entitlement_amount');
 
         $operations = $query->latest('scheduled_at')->paginate($request->integer('per_page', 15));
 
-        return response()->json($operations);
+        return response()->json([
+            ...$operations->toArray(),
+            'price_total' => $priceTotal,
+            'net_total' => $priceTotal - $entitlementsTotal,
+        ]);
     }
 
     public function show(Operation $operation): JsonResponse

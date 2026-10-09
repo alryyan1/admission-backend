@@ -58,18 +58,27 @@ class WhatsAppService
 
     /**
      * @param  array<int, array<string, mixed>>  $bodyParameters  e.g. [['type' => 'text', 'text' => 'Ahmed']]
+     * @param  array<int, array<string, mixed>>  $headerParameters  e.g. [['type' => 'document', 'document' => ['id' => $mediaId, 'filename' => 'file.pdf']]]
      */
     public function sendTemplate(
         string $toPhone,
         string $templateName,
         string $languageCode,
         array $bodyParameters = [],
+        array $headerParameters = [],
     ): Response {
         if (! $this->isConfigured()) {
             throw new \RuntimeException('WhatsApp Cloud API is not configured (missing phone_number_id or access_token).');
         }
 
         $components = [];
+
+        if ($headerParameters !== []) {
+            $components[] = [
+                'type' => 'header',
+                'parameters' => $headerParameters,
+            ];
+        }
 
         if ($bodyParameters !== []) {
             $components[] = [
@@ -91,6 +100,29 @@ class WhatsAppService
                 ],
             ])
             ->throw();
+    }
+
+    /**
+     * Uploads a binary file to the Cloud API's Media endpoint so it can be referenced
+     * by id in a document-header template message. Returns the resulting media id.
+     */
+    public function uploadMedia(string $binary, string $filename, string $mimeType = 'application/pdf'): string
+    {
+        if (! $this->isConfigured()) {
+            throw new \RuntimeException('WhatsApp Cloud API is not configured (missing phone_number_id or access_token).');
+        }
+
+        $response = Http::withToken($this->accessToken)
+            ->acceptJson()
+            ->attach('file', $binary, $filename, ['Content-Type' => $mimeType])
+            ->post("https://graph.facebook.com/{$this->apiVersion}/{$this->phoneNumberId}/media", [
+                'messaging_product' => 'whatsapp',
+                'type' => $mimeType,
+            ])
+            ->throw()
+            ->json();
+
+        return (string) $response['id'];
     }
 
     /**

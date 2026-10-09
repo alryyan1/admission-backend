@@ -12,6 +12,7 @@ use App\Support\Pdf\Documents\DepositReceiptPdf;
 use App\Support\Pdf\Documents\OperationInvoicePdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class PdfDocumentService
 {
@@ -539,6 +540,66 @@ class PdfDocumentService
         }
 
         return $this->renderer->toResponse($pdf, "payments-report-{$from->toDateString()}-{$to->toDateString()}.pdf");
+    }
+
+    /**
+     * @param  Collection<int, Operation>  $operations
+     */
+    public function operationsReport(Collection $operations, ?string $dateFrom, ?string $dateTo): Response
+    {
+        $pdf = $this->renderer->make('تقرير العمليات', 'L', 'A4');
+
+        $pdf->metaRow(
+            'من: '.($dateFrom ? $this->date($dateFrom) : '—'),
+            'إلى: '.($dateTo ? $this->date($dateTo) : '—'),
+            'تاريخ الطباعة: '.$this->dateTime(now())
+        );
+        $pdf->spacing(3);
+
+        $cw = $pdf->contentWidth();
+        $widths = [$cw * 0.10, $cw * 0.18, $cw * 0.18, $cw * 0.14, $cw * 0.12, $cw * 0.12, $cw * 0.16];
+        $pdf->tableHeader([
+            ['label' => 'رقم العملية', 'width' => $widths[0]],
+            ['label' => 'المريض', 'width' => $widths[1]],
+            ['label' => 'الإجراء', 'width' => $widths[2]],
+            ['label' => 'الجراح', 'width' => $widths[3]],
+            ['label' => 'السعر', 'width' => $widths[4]],
+            ['label' => 'صافي المركز', 'width' => $widths[5]],
+            ['label' => 'تاريخ العملية', 'width' => $widths[6]],
+        ]);
+
+        if ($operations->isEmpty()) {
+            $pdf->tableEmptyRow('لا توجد عمليات ضمن الفترة المحددة');
+        }
+
+        $priceTotal = 0.0;
+        $netTotal = 0.0;
+
+        foreach ($operations as $operation) {
+            $price = (float) ($operation->price ?? 0);
+            $net = $price - (float) $operation->teamMembers->sum('entitlement_amount');
+
+            $priceTotal += $price;
+            $netTotal += $net;
+
+            $pdf->tableRow([
+                $operation->operation_number ?? ('#'.$operation->id),
+                $operation->admission?->patient?->name ?? '—',
+                $operation->procedure?->name_ar ?? '—',
+                $operation->surgeon?->name ?? '—',
+                $this->money($price),
+                $this->money($net),
+                $this->dateTime($operation->scheduled_at),
+            ], $widths);
+        }
+
+        $pdf->totalsBlock([
+            ['label' => 'عدد العمليات', 'value' => (string) $operations->count()],
+            ['label' => 'إجمالي السعر', 'value' => $this->money($priceTotal), 'bold' => true],
+            ['label' => 'إجمالي الصافي', 'value' => $this->money($netTotal), 'bold' => true, 'big' => true],
+        ]);
+
+        return $this->renderer->toResponse($pdf, 'operations-report-'.now()->format('Y-m-d').'.pdf');
     }
 
     /**

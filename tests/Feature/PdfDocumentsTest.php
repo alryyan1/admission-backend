@@ -239,6 +239,27 @@ class PdfDocumentsTest extends TestCase
         );
     }
 
+    public function test_operations_report_pdf(): void
+    {
+        $user = User::factory()->create();
+        $admission = Admission::factory()->create();
+        $operation = Operation::factory()->for($admission)->create(['price' => 50000]);
+        $operation->teamMembers()->create(['name' => 'جراح', 'entitlement_amount' => 20000]);
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get('/api/operations/report.pdf')
+        );
+    }
+
+    public function test_operations_report_pdf_with_no_matching_operations(): void
+    {
+        $user = User::factory()->create();
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get('/api/operations/report.pdf?search=no-such-procedure')
+        );
+    }
+
     public function test_pdf_endpoints_require_authentication(): void
     {
         $admission = Admission::factory()->create();

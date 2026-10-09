@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\DoctorEntitlementsReportController;
 use App\Http\Controllers\Api\DoctorOrderController;
 use App\Http\Controllers\Api\DoctorRevenueReportController;
+use App\Http\Controllers\Api\ExcelController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\FacilitySettingController;
 use App\Http\Controllers\Api\FloorController;
@@ -41,6 +42,8 @@ use App\Http\Controllers\Api\TreatmentDoseController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VitalSignController;
 use App\Http\Controllers\Api\WardController;
+use App\Http\Controllers\Api\WhatsAppDocumentController;
+use App\Http\Controllers\Api\WhatsAppRecipientController;
 use App\Http\Controllers\Api\WhatsAppSettingController;
 use Illuminate\Support\Facades\Route;
 
@@ -120,6 +123,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/settings/whatsapp', [WhatsAppSettingController::class, 'show']);
         Route::post('/settings/whatsapp/test', [WhatsAppSettingController::class, 'sendTest']);
+
+        Route::get('/settings/whatsapp/recipients', [WhatsAppRecipientController::class, 'index']);
+        Route::post('/settings/whatsapp/recipients', [WhatsAppRecipientController::class, 'store']);
+        Route::delete('/settings/whatsapp/recipients/{recipient}', [WhatsAppRecipientController::class, 'destroy']);
     });
 
     Route::apiResource('admissions', AdmissionController::class)->only(['index', 'show']);
@@ -155,6 +162,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admissions/{admission}/operations', [OperationController::class, 'store'])->middleware('role:admin,doctor');
 
     Route::get('/operations', [OperationController::class, 'all']);
+    Route::get('/operations/report.pdf', [PdfController::class, 'operationsReport']);
+    Route::get('/operations/report.xlsx', [ExcelController::class, 'operationsReport']);
     Route::get('/operations/{operation}', [OperationController::class, 'show']);
     Route::patch('/operations/{operation}', [OperationController::class, 'update'])->middleware('role:admin,doctor');
     Route::post('/operations/{operation}/team-members', [OperationController::class, 'addTeamMember'])->middleware('role:admin,doctor');
@@ -177,7 +186,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admissions/{admission}/summary.pdf', [PdfController::class, 'admissionSummary']);
     Route::get('/invoices/{invoice}/invoice.pdf', [PdfController::class, 'finalInvoice']);
     Route::get('/operations/{operation}/invoice.pdf', [PdfController::class, 'operationInvoice']);
+    Route::post('/operations/{operation}/invoice.pdf/whatsapp', [WhatsAppDocumentController::class, 'operationInvoice']);
     Route::get('/operations/{operation}/team.pdf', [PdfController::class, 'operationTeam']);
+    Route::post('/operations/{operation}/team.pdf/whatsapp', [WhatsAppDocumentController::class, 'operationTeam']);
 
     Route::get('/reports/revenue-calculator', [RevenueCalculatorController::class, 'show']);
     Route::get('/reports/revenue-calculator.pdf', [PdfController::class, 'revenueCalculator']);

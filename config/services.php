@@ -40,7 +40,7 @@ return [
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
         'waba_id' => env('WHATSAPP_WABA_ID'),
         'access_token' => env('WHATSAPP_ACCESS_TOKEN'),
-        'default_country_code' => env('WHATSAPP_DEFAULT_COUNTRY_CODE', '20'),
+        'default_country_code' => env('WHATSAPP_DEFAULT_COUNTRY_CODE', '249'),
         'admission_template' => [
             'name' => env('WHATSAPP_ADMISSION_TEMPLATE_NAME', 'admission_created'),
             'language' => env('WHATSAPP_ADMISSION_TEMPLATE_LANGUAGE', 'ar'),
@@ -52,6 +52,14 @@ return [
         'doctor_admission_template' => [
             'name' => env('WHATSAPP_DOCTOR_ADMISSION_TEMPLATE_NAME', 'admission_doctor_notice'),
             'language' => env('WHATSAPP_DOCTOR_ADMISSION_TEMPLATE_LANGUAGE', 'ar'),
+        ],
+        'operation_team_template' => [
+            'name' => env('WHATSAPP_OPERATION_TEAM_TEMPLATE_NAME', 'operation_team_pdf'),
+            'language' => env('WHATSAPP_OPERATION_TEAM_TEMPLATE_LANGUAGE', 'ar'),
+        ],
+        'operation_invoice_template' => [
+            'name' => env('WHATSAPP_OPERATION_INVOICE_TEMPLATE_NAME', 'operation_invoice_pdf'),
+            'language' => env('WHATSAPP_OPERATION_INVOICE_TEMPLATE_LANGUAGE', 'ar'),
         ],
     ],
 

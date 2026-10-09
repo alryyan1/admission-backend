@@ -45,13 +45,14 @@ class SendAdmissionReminderWhatsAppNoticeTest extends TestCase
         Bus::assertDispatchedTimes(SendAdmissionReminderWhatsAppNotice::class, 1);
     }
 
-    public function test_it_sends_the_configured_template_to_the_admitting_doctor(): void
+    public function test_it_sends_the_configured_template_to_the_referring_doctor(): void
     {
         config([
             'services.whatsapp.phone_number_id' => '1234567890',
             'services.whatsapp.access_token' => 'test-token',
             'services.whatsapp.reminder_template.name' => 'admission_reminder',
             'services.whatsapp.reminder_template.language' => 'ar',
+            'services.whatsapp.default_country_code' => '20',
         ]);
 
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.test']]], 200)]);
@@ -59,7 +60,7 @@ class SendAdmissionReminderWhatsAppNoticeTest extends TestCase
         $doctor = Doctor::factory()->create(['phone' => '01098765432']);
         $room = Room::factory()->create(['room_number' => '5']);
         $bed = Bed::factory()->create(['room_id' => $room->id, 'bed_number' => '2', 'status' => 'available']);
-        $patient = Patient::factory()->create(['name' => 'Ahmed Ali', 'admitting_doctor_id' => $doctor->id]);
+        $patient = Patient::factory()->create(['name' => 'Ahmed Ali', 'referred_by_doctor_id' => $doctor->id]);
         $admission = Admission::factory()->create([
             'patient_id' => $patient->id,
             'bed_id' => $bed->id,
@@ -80,11 +81,11 @@ class SendAdmissionReminderWhatsAppNoticeTest extends TestCase
         });
     }
 
-    public function test_it_does_nothing_when_the_patient_has_no_admitting_doctor(): void
+    public function test_it_does_nothing_when_the_patient_has_no_referring_doctor(): void
     {
         Http::fake();
 
-        $patient = Patient::factory()->create(['admitting_doctor_id' => null]);
+        $patient = Patient::factory()->create(['referred_by_doctor_id' => null]);
         $admission = Admission::factory()->create(['patient_id' => $patient->id]);
 
         (new SendAdmissionReminderWhatsAppNotice($admission))->handle(app(WhatsAppService::class));

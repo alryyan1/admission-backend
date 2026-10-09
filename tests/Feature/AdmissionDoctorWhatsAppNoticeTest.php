@@ -143,6 +143,7 @@ class AdmissionDoctorWhatsAppNoticeTest extends TestCase
         config([
             'services.whatsapp.phone_number_id' => '1234567890',
             'services.whatsapp.access_token' => 'test-token',
+            'services.whatsapp.default_country_code' => '20',
         ]);
 
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.test']]], 200)]);

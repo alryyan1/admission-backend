@@ -8,6 +8,7 @@ use App\Models\AdmissionDeposit;
 use App\Models\Invoice;
 use App\Models\Operation;
 use App\Models\User;
+use App\Services\OperationService;
 use App\Services\PdfDocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -75,5 +76,19 @@ class PdfController extends Controller
         $paidByUserId = $request->filled('paid_by_user_id') ? $request->integer('paid_by_user_id') : null;
 
         return $this->documents->paymentsReport($from->startOfDay(), $to->endOfDay(), $request->user()?->name, $paidByUserId);
+    }
+
+    public function operationsReport(Request $request, OperationService $operations): Response
+    {
+        $list = $operations->filteredQuery($request)
+            ->with(['procedure', 'surgeon', 'admission.patient', 'teamMembers'])
+            ->latest('scheduled_at')
+            ->get();
+
+        return $this->documents->operationsReport(
+            $list,
+            $request->filled('date_from') ? (string) $request->query('date_from') : null,
+            $request->filled('date_to') ? (string) $request->query('date_to') : null,
+        );
     }
 }

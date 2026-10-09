@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Admission;
+use App\Models\WhatsAppRecipient;
 use App\Services\WhatsAppService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -21,30 +22,40 @@ class SendAdmissionWhatsAppNotice implements ShouldQueue
 
     public function handle(WhatsAppService $whatsApp): void
     {
-        $this->admission->loadMissing(['patient', 'bed.room']);
+        $this->admission->loadMissing(['patient.referredByDoctor', 'bed.room']);
 
-        $phone = $this->admission->patient?->phone;
-
-        if (blank($phone) || $this->admission->bed === null || ! $whatsApp->isConfigured()) {
+        if ($this->admission->bed === null || ! $whatsApp->isConfigured()) {
             return;
         }
 
-        try {
-            $whatsApp->sendTemplate(
-                toPhone: $phone,
-                templateName: (string) config('services.whatsapp.admission_template.name'),
-                languageCode: (string) config('services.whatsapp.admission_template.language'),
-                bodyParameters: [
-                    ['type' => 'text', 'text' => $this->admission->patient->name],
-                    ['type' => 'text', 'text' => $this->admission->bed->room->room_number.' / '.$this->admission->bed->bed_number],
-                    ['type' => 'text', 'text' => $this->admission->admission_date->format('Y-m-d H:i')],
-                ],
-            );
-        } catch (\Throwable $exception) {
-            Log::error('Failed to send WhatsApp admission notice.', [
-                'admission_id' => $this->admission->id,
-                'message' => $exception->getMessage(),
-            ]);
+        $templateName = (string) config('services.whatsapp.admission_template.name');
+        $languageCode = (string) config('services.whatsapp.admission_template.language');
+        $bodyParameters = [
+            ['type' => 'text', 'text' => $this->admission->patient->name],
+            ['type' => 'text', 'text' => $this->admission->bed->room->room_number.' / '.$this->admission->bed->bed_number],
+            ['type' => 'text', 'text' => $this->admission->admission_date->format('Y-m-d H:i')],
+        ];
+
+        $recipients = collect([$this->admission->patient?->referredByDoctor?->phone])
+            ->merge(WhatsAppRecipient::query()->pluck('phone'))
+            ->filter()
+            ->unique();
+
+        foreach ($recipients as $phone) {
+            try {
+                $whatsApp->sendTemplate(
+                    toPhone: $phone,
+                    templateName: $templateName,
+                    languageCode: $languageCode,
+                    bodyParameters: $bodyParameters,
+                );
+            } catch (\Throwable $exception) {
+                Log::error('Failed to send WhatsApp admission notice.', [
+                    'admission_id' => $this->admission->id,
+                    'phone' => $phone,
+                    'message' => $exception->getMessage(),
+                ]);
+            }
         }
     }
 }
