@@ -7,6 +7,7 @@ use App\Models\Doctor;
 use App\Models\Operation;
 use App\Models\OperationSupply;
 use App\Models\OperationTeamMember;
+use App\Models\PaymentMethod;
 use App\Models\Procedure;
 use App\Models\TeamRole;
 use App\Models\User;
@@ -216,6 +217,25 @@ class OperationTest extends TestCase
 
         $response->assertUnprocessable();
         $this->assertDatabaseCount('operation_team_members', 0);
+    }
+
+    public function test_adding_a_team_member_defaults_to_the_bank_payment_method(): void
+    {
+        $doctor = User::factory()->role('doctor')->create();
+        $operation = Operation::factory()->create();
+        $bank = PaymentMethod::factory()->create(['name' => 'بنكك']);
+
+        $response = $this->actingAs($doctor, 'sanctum')
+            ->postJson("/api/operations/{$operation->id}/team-members", [
+                'name' => 'Team member',
+                'role_id' => TeamRole::factory()->create()->id,
+            ]);
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('operation_team_members', [
+            'id' => $response->json('id'),
+            'payment_method_id' => $bank->id,
+        ]);
     }
 
     public function test_doctor_cannot_remove_a_team_member_from_an_operation_on_a_cancelled_admission(): void

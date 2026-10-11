@@ -11,6 +11,7 @@ use App\Models\Admission;
 use App\Models\Operation;
 use App\Models\OperationSupply;
 use App\Models\OperationTeamMember;
+use App\Models\PaymentMethod;
 use App\Services\OperationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,9 @@ use Illuminate\Http\Response;
 
 class OperationController extends Controller
 {
+    /** Payment method pre-selected for a newly added team member when none is specified. */
+    private const DEFAULT_TEAM_MEMBER_PAYMENT_METHOD_NAME = 'بنكك';
+
     public function __construct(private readonly OperationService $operationService) {}
 
     /**
@@ -103,7 +107,12 @@ class OperationController extends Controller
     {
         $operation->admission->assertMutable($request->user());
 
-        $member = $operation->teamMembers()->create($request->validated());
+        $member = $operation->teamMembers()->create([
+            ...$request->validated(),
+            'payment_method_id' => PaymentMethod::query()
+                ->where('name', self::DEFAULT_TEAM_MEMBER_PAYMENT_METHOD_NAME)
+                ->value('id'),
+        ]);
         $member->load(['doctor', 'role']);
 
         return response()->json($member, Response::HTTP_CREATED);
