@@ -18,12 +18,10 @@ class OperationTeamMember extends Model
         'notes',
         'entitlement_amount',
         'payment_method_id',
-        'entitlement_paid_at',
     ];
 
     protected $casts = [
         'entitlement_amount' => 'decimal:2',
-        'entitlement_paid_at' => 'date:Y-m-d',
     ];
 
     public function operation(): BelongsTo

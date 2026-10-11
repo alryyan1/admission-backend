@@ -114,8 +114,9 @@ class StatisticsController extends Controller
         $depositsTotal = (float) AdmissionDeposit::query()->whereBetween('paid_at', [$from, $to])->sum('amount');
 
         $entitlementsTotal = (float) OperationTeamMember::query()
-            ->whereBetween('entitlement_paid_at', [$from, $to])
-            ->sum('entitlement_amount');
+            ->join('operations', 'operations.id', '=', 'operation_team_members.operation_id')
+            ->whereBetween('operations.created_at', [$from, $to])
+            ->sum('operation_team_members.entitlement_amount');
 
         $expensesTotal = (float) Expense::query()->whereBetween('expense_date', [$from, $to])->sum('amount');
 

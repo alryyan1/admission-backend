@@ -12,9 +12,11 @@ class TeamRole extends Model
     protected $fillable = [
         'name',
         'sort_order',
+        'is_default_team_member',
     ];
 
     protected $casts = [
         'is_protected' => 'boolean',
+        'is_default_team_member' => 'boolean',
     ];
 }

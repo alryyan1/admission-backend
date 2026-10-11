@@ -103,6 +103,15 @@ class OperationController extends Controller
         return response()->json($operation);
     }
 
+    public function destroy(Request $request, Operation $operation): JsonResponse
+    {
+        $operation->admission->assertMutable($request->user());
+
+        $this->operationService->delete($operation);
+
+        return response()->json(null, Response::HTTP_NO_CONTENT);
+    }
+
     public function addTeamMember(StoreOperationTeamMemberRequest $request, Operation $operation): JsonResponse
     {
         $operation->admission->assertMutable($request->user());

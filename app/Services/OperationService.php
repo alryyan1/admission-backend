@@ -31,6 +31,13 @@ class OperationService
         return $operation;
     }
 
+    public function delete(Operation $operation): void
+    {
+        $operation->teamMembers()->delete();
+        $operation->supplies()->delete();
+        $operation->delete();
+    }
+
     /**
      * The surgeon/date/search filters shared by the operations listing, PDF report, and Excel export.
      */

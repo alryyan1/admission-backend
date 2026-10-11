@@ -12,6 +12,9 @@ class AccountantController extends Controller
 {
     public function updateEntitlement(UpdateTeamMemberEntitlementRequest $request, OperationTeamMember $teamMember): JsonResponse
     {
+        $teamMember->loadMissing('operation.admission');
+        $teamMember->operation->admission->assertMutable($request->user());
+
         $validated = $request->validated();
 
         $this->guardEntitlementWithinOperationPrice($teamMember, $validated);

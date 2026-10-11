@@ -10,13 +10,13 @@ class TeamRoleSeeder extends Seeder
     public function run(): void
     {
         $roles = [
-            ['slug' => 'surgeon', 'name' => 'جراح', 'sort_order' => 0, 'is_protected' => true],
-            ['slug' => 'assistant_surgeon', 'name' => 'مساعد جراح', 'sort_order' => 1, 'is_protected' => false],
-            ['slug' => 'anesthesiologist', 'name' => 'طبيب تخدير', 'sort_order' => 2, 'is_protected' => false],
-            ['slug' => 'scrub_nurse', 'name' => 'ممرض/ة تعقيم', 'sort_order' => 3, 'is_protected' => false],
-            ['slug' => 'circulating_nurse', 'name' => 'ممرض/ة تداول', 'sort_order' => 4, 'is_protected' => false],
-            ['slug' => 'technician', 'name' => 'فني', 'sort_order' => 5, 'is_protected' => false],
-            ['slug' => 'other', 'name' => 'أخرى', 'sort_order' => 6, 'is_protected' => false],
+            ['slug' => 'surgeon', 'name' => 'جراح', 'sort_order' => 0, 'is_protected' => true, 'is_default_team_member' => true],
+            ['slug' => 'assistant_surgeon', 'name' => 'مساعد جراح', 'sort_order' => 1, 'is_protected' => false, 'is_default_team_member' => true],
+            ['slug' => 'anesthesiologist', 'name' => 'طبيب تخدير', 'sort_order' => 2, 'is_protected' => false, 'is_default_team_member' => true],
+            ['slug' => 'scrub_nurse', 'name' => 'ممرض/ة تعقيم', 'sort_order' => 3, 'is_protected' => false, 'is_default_team_member' => false],
+            ['slug' => 'circulating_nurse', 'name' => 'ممرض/ة تداول', 'sort_order' => 4, 'is_protected' => false, 'is_default_team_member' => true],
+            ['slug' => 'technician', 'name' => 'فني', 'sort_order' => 5, 'is_protected' => false, 'is_default_team_member' => false],
+            ['slug' => 'other', 'name' => 'أخرى', 'sort_order' => 6, 'is_protected' => false, 'is_default_team_member' => false],
         ];
 
         foreach ($roles as $role) {

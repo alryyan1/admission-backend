@@ -47,7 +47,8 @@ class RevenueCalculatorService
         if ($userId === null) {
             $entitlementsByMethod = OperationTeamMember::query()
                 ->join('payment_methods', 'payment_methods.id', '=', 'operation_team_members.payment_method_id')
-                ->whereBetween('operation_team_members.entitlement_paid_at', [$start, $end])
+                ->join('operations', 'operations.id', '=', 'operation_team_members.operation_id')
+                ->whereBetween('operations.created_at', [$start, $end])
                 ->selectRaw('payment_methods.name as method, SUM(operation_team_members.entitlement_amount) as total')
                 ->groupBy('payment_methods.name')
                 ->pluck('total', 'method');

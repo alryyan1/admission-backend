@@ -66,6 +66,19 @@ class TeamRoleControllerTest extends TestCase
         $response->assertOk()->assertJsonPath('name', 'جديد');
     }
 
+    public function test_admin_can_toggle_default_team_member_flag(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $role = TeamRole::factory()->create(['is_default_team_member' => false]);
+
+        $response = $this->actingAs($admin, 'sanctum')->patchJson("/api/team-roles/{$role->id}", [
+            'is_default_team_member' => true,
+        ]);
+
+        $response->assertOk()->assertJsonPath('is_default_team_member', true);
+        $this->assertDatabaseHas('team_roles', ['id' => $role->id, 'is_default_team_member' => true]);
+    }
+
     public function test_admin_can_delete_an_unreferenced_team_role(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

@@ -50,4 +50,15 @@ class TeamRoleSeederTest extends TestCase
 
         $this->assertTrue(TeamRole::query()->where('slug', 'surgeon')->firstOrFail()->is_protected);
     }
+
+    public function test_the_default_team_slugs_are_marked_as_default_team_members(): void
+    {
+        $this->seed(TeamRoleSeeder::class);
+
+        foreach (array_keys(self::DEFAULT_TEAM_ROLE_SLUGS) as $slug) {
+            $this->assertTrue(TeamRole::query()->where('slug', $slug)->firstOrFail()->is_default_team_member);
+        }
+
+        $this->assertFalse(TeamRole::query()->where('slug', 'technician')->firstOrFail()->is_default_team_member);
+    }
 }

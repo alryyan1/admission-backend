@@ -18,6 +18,7 @@ class UpdateTeamRoleRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'is_default_team_member' => ['sometimes', 'boolean'],
         ];
     }
 }

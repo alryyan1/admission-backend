@@ -273,6 +273,68 @@ class OperationTest extends TestCase
         $this->assertDatabaseHas('operation_supplies', ['id' => $supply->id]);
     }
 
+    public function test_doctor_can_delete_an_operation(): void
+    {
+        $doctor = User::factory()->role('doctor')->create();
+        $operation = Operation::factory()->create();
+
+        $response = $this->actingAs($doctor, 'sanctum')->deleteJson("/api/operations/{$operation->id}");
+
+        $response->assertNoContent();
+        $this->assertDatabaseMissing('operations', ['id' => $operation->id]);
+    }
+
+    public function test_deleting_an_operation_removes_its_team_members_and_supplies(): void
+    {
+        $doctor = User::factory()->role('doctor')->create();
+        $operation = Operation::factory()->create();
+        $teamMember = OperationTeamMember::factory()->create(['operation_id' => $operation->id]);
+        $supply = OperationSupply::factory()->create(['operation_id' => $operation->id]);
+
+        $response = $this->actingAs($doctor, 'sanctum')->deleteJson("/api/operations/{$operation->id}");
+
+        $response->assertNoContent();
+        $this->assertDatabaseMissing('operation_team_members', ['id' => $teamMember->id]);
+        $this->assertDatabaseMissing('operation_supplies', ['id' => $supply->id]);
+    }
+
+    public function test_nurse_cannot_delete_an_operation(): void
+    {
+        $nurse = User::factory()->role('nurse')->create();
+        $operation = Operation::factory()->create();
+
+        $response = $this->actingAs($nurse, 'sanctum')->deleteJson("/api/operations/{$operation->id}");
+
+        $response->assertForbidden();
+        $this->assertDatabaseHas('operations', ['id' => $operation->id]);
+    }
+
+    public function test_doctor_cannot_delete_an_operation_on_a_cancelled_admission(): void
+    {
+        $doctor = User::factory()->role('doctor')->create();
+        $operation = Operation::factory()->create([
+            'admission_id' => Admission::factory()->create(['status' => 'cancelled'])->id,
+        ]);
+
+        $response = $this->actingAs($doctor, 'sanctum')->deleteJson("/api/operations/{$operation->id}");
+
+        $response->assertUnprocessable();
+        $this->assertDatabaseHas('operations', ['id' => $operation->id]);
+    }
+
+    public function test_admin_can_delete_an_operation_on_a_cancelled_admission(): void
+    {
+        $admin = User::factory()->role('admin')->create();
+        $operation = Operation::factory()->create([
+            'admission_id' => Admission::factory()->create(['status' => 'cancelled'])->id,
+        ]);
+
+        $response = $this->actingAs($admin, 'sanctum')->deleteJson("/api/operations/{$operation->id}");
+
+        $response->assertNoContent();
+        $this->assertDatabaseMissing('operations', ['id' => $operation->id]);
+    }
+
     public function test_admin_can_update_an_operation_on_a_cancelled_admission(): void
     {
         $admin = User::factory()->role('admin')->create();

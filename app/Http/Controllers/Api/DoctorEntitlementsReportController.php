@@ -28,8 +28,6 @@ class DoctorEntitlementsReportController extends Controller
             'summary' => [
                 'operations_count' => $members->pluck('operation_id')->unique()->count(),
                 'total' => (float) $members->sum('entitlement_amount'),
-                'paid' => (float) $members->whereNotNull('entitlement_paid_at')->sum('entitlement_amount'),
-                'unpaid' => (float) $members->whereNull('entitlement_paid_at')->sum('entitlement_amount'),
             ],
             'doctors' => $this->groupByDoctor($members),
             'entitlements' => $members->map(fn (OperationTeamMember $member) => [
@@ -42,7 +40,6 @@ class DoctorEntitlementsReportController extends Controller
                 'doctor_name' => $this->memberName($member),
                 'role' => $member->role?->name,
                 'amount' => (float) $member->entitlement_amount,
-                'paid_at' => $member->entitlement_paid_at,
                 'payment_method' => $member->paymentMethod?->name,
             ])->values(),
         ]);
@@ -50,7 +47,7 @@ class DoctorEntitlementsReportController extends Controller
 
     /**
      * @param  Collection<int, OperationTeamMember>  $members
-     * @return Collection<int, array{name: string, role: string|null, operations_count: int, total: float, paid: float, unpaid: float}>
+     * @return Collection<int, array{name: string, role: string|null, operations_count: int, total: float}>
      */
     private function groupByDoctor(Collection $members): Collection
     {
@@ -63,8 +60,6 @@ class DoctorEntitlementsReportController extends Controller
                 'role' => $rows->first()->role?->name,
                 'operations_count' => $rows->pluck('operation_id')->unique()->count(),
                 'total' => (float) $rows->sum('entitlement_amount'),
-                'paid' => (float) $rows->whereNotNull('entitlement_paid_at')->sum('entitlement_amount'),
-                'unpaid' => (float) $rows->whereNull('entitlement_paid_at')->sum('entitlement_amount'),
             ])
             ->sortByDesc('total')
             ->values();

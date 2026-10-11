@@ -17,6 +17,7 @@ class TeamRoleFactory extends Factory
             'name' => fake()->unique()->jobTitle(),
             'sort_order' => 0,
             'is_protected' => false,
+            'is_default_team_member' => false,
         ];
     }
 }

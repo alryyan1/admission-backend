@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\BackupController;
 use App\Http\Controllers\Api\BedController;
 use App\Http\Controllers\Api\ChartOpeningServiceSettingController;
 use App\Http\Controllers\Api\DailyRevenueReportController;
+use App\Http\Controllers\Api\DepositSettingController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\DoctorEntitlementsReportController;
 use App\Http\Controllers\Api\DoctorOrderController;
@@ -115,6 +116,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/settings/chart-opening-service', [ChartOpeningServiceSettingController::class, 'show']);
         Route::put('/settings/chart-opening-service', [ChartOpeningServiceSettingController::class, 'update']);
 
+        Route::get('/settings/deposit', [DepositSettingController::class, 'show']);
+        Route::put('/settings/deposit', [DepositSettingController::class, 'update']);
+
         Route::get('/settings/facility', [FacilitySettingController::class, 'show']);
         Route::post('/settings/facility', [FacilitySettingController::class, 'update']);
         Route::get('/settings/facility/logo', [FacilitySettingController::class, 'logo']);
@@ -166,6 +170,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/operations/report.xlsx', [ExcelController::class, 'operationsReport']);
     Route::get('/operations/{operation}', [OperationController::class, 'show']);
     Route::patch('/operations/{operation}', [OperationController::class, 'update'])->middleware('role:admin,doctor');
+    Route::delete('/operations/{operation}', [OperationController::class, 'destroy'])->middleware('role:admin,doctor');
     Route::post('/operations/{operation}/team-members', [OperationController::class, 'addTeamMember'])->middleware('role:admin,doctor');
     Route::delete('/operations/{operation}/team-members/{teamMember}', [OperationController::class, 'removeTeamMember'])->middleware('role:admin,doctor');
     Route::post('/operations/{operation}/supplies', [OperationController::class, 'addSupply'])->middleware('role:admin,doctor,nurse');

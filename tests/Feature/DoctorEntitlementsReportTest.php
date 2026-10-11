@@ -14,7 +14,7 @@ class DoctorEntitlementsReportTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_entitlements_are_grouped_per_doctor_with_paid_and_unpaid_totals(): void
+    public function test_entitlements_are_grouped_per_doctor_with_totals(): void
     {
         $cashier = User::factory()->create(['role' => 'cashier']);
         $surgeon = Doctor::factory()->create(['name' => 'د. أحمد']);
@@ -29,7 +29,6 @@ class DoctorEntitlementsReportTest extends TestCase
             'doctor_id' => $surgeon->id,
             'role_id' => $role->id,
             'entitlement_amount' => 1000,
-            'entitlement_paid_at' => '2026-10-04',
         ]);
         OperationTeamMember::factory()->create([
             'operation_id' => $secondOperation->id,
@@ -42,7 +41,6 @@ class DoctorEntitlementsReportTest extends TestCase
             'doctor_id' => $anesthetist->id,
             'role_id' => $role->id,
             'entitlement_amount' => 250,
-            'entitlement_paid_at' => '2026-10-21',
         ]);
 
         $response = $this->actingAs($cashier, 'sanctum')->getJson('/api/reports/doctor-entitlements?from=2026-10-01&to=2026-10-31');
@@ -52,14 +50,10 @@ class DoctorEntitlementsReportTest extends TestCase
             ->assertJsonPath('range.to', '2026-10-31')
             ->assertJsonPath('summary.operations_count', 2)
             ->assertJsonPath('summary.total', 1650)
-            ->assertJsonPath('summary.paid', 1250)
-            ->assertJsonPath('summary.unpaid', 400)
             ->assertJsonCount(2, 'doctors')
             ->assertJsonPath('doctors.0.name', 'د. أحمد')
             ->assertJsonPath('doctors.0.operations_count', 2)
             ->assertJsonPath('doctors.0.total', 1400)
-            ->assertJsonPath('doctors.0.paid', 1000)
-            ->assertJsonPath('doctors.0.unpaid', 400)
             ->assertJsonPath('doctors.0.role', 'جراح')
             ->assertJsonPath('doctors.1.name', 'د. سارة')
             ->assertJsonPath('doctors.1.total', 250)

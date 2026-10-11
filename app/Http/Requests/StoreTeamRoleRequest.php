@@ -18,6 +18,7 @@ class StoreTeamRoleRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'is_default_team_member' => ['sometimes', 'boolean'],
         ];
     }
 }

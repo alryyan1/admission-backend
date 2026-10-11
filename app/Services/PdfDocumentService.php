@@ -130,13 +130,12 @@ class PdfDocumentService
         $pdf->spacing(3);
 
         $cw = $pdf->contentWidth();
-        $widths = [$cw * 0.20, $cw * 0.28, $cw * 0.16, $cw * 0.18, $cw * 0.18];
+        $widths = [$cw * 0.25, $cw * 0.35, $cw * 0.20, $cw * 0.20];
         $pdf->tableHeader([
             ['label' => 'الدور', 'width' => $widths[0]],
             ['label' => 'العضو', 'width' => $widths[1]],
             ['label' => 'الاستحقاق', 'width' => $widths[2]],
             ['label' => 'طريقة الدفع', 'width' => $widths[3]],
-            ['label' => 'تاريخ الدفع', 'width' => $widths[4]],
         ]);
 
         if ($operation->teamMembers->isEmpty()) {
@@ -149,7 +148,6 @@ class PdfDocumentService
                 $member->doctor?->name ?? $member->name ?? '—',
                 $member->entitlement_amount !== null ? $this->money($member->entitlement_amount) : '—',
                 $member->paymentMethod?->name ?? '—',
-                $member->entitlement_paid_at ? $this->date($member->entitlement_paid_at) : '—',
             ], $widths);
         }
 

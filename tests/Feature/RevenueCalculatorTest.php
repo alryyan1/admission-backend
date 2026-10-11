@@ -36,7 +36,6 @@ class RevenueCalculatorTest extends TestCase
         $operation->teamMembers()->create([
             'payment_method_id' => $cash->id,
             'entitlement_amount' => 150,
-            'entitlement_paid_at' => now(),
         ]);
 
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/reports/revenue-calculator');
@@ -61,6 +60,26 @@ class RevenueCalculatorTest extends TestCase
         $this->assertEquals(550.0, $rowsByLabel['الصافي']['amounts']['نقدي']);
         $this->assertEquals(2000.0, $rowsByLabel['الصافي']['amounts']['بنكك']);
         $this->assertEquals(2550.0, $rowsByLabel['الصافي']['total']);
+    }
+
+    public function test_revenue_calculator_scopes_entitlements_to_the_operations_creation_date(): void
+    {
+        $user = User::factory()->create();
+        $cash = PaymentMethod::factory()->create(['name' => 'نقدي']);
+
+        $todayOperation = Operation::factory()->create();
+        $todayOperation->teamMembers()->create(['payment_method_id' => $cash->id, 'entitlement_amount' => 150]);
+
+        $yesterdayOperation = Operation::factory()->create();
+        $yesterdayOperation->forceFill(['created_at' => now()->subDay()])->save();
+        $yesterdayOperation->teamMembers()->create(['payment_method_id' => $cash->id, 'entitlement_amount' => 900]);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/reports/revenue-calculator');
+
+        $response->assertOk();
+        $rowsByLabel = collect($response->json('rows'))->keyBy('label');
+
+        $this->assertEquals(150.0, $rowsByLabel['استحقاقات العميلة']['total']);
     }
 
     public function test_revenue_calculator_ignores_inactive_payment_methods(): void
@@ -100,7 +119,7 @@ class RevenueCalculatorTest extends TestCase
         Expense::query()->create(['payment_method_id' => $cash->id, 'amount' => 700, 'category' => 'صيانة', 'description' => 'صيانة', 'expense_date' => now(), 'recorded_by_id' => $otherUser->id]);
 
         $operation = Operation::factory()->create();
-        $operation->teamMembers()->create(['payment_method_id' => $cash->id, 'entitlement_amount' => 150, 'entitlement_paid_at' => now()]);
+        $operation->teamMembers()->create(['payment_method_id' => $cash->id, 'entitlement_amount' => 150]);
 
         $response = $this->actingAs($user, 'sanctum')->getJson("/api/reports/revenue-calculator?user_id={$user->id}");
 
