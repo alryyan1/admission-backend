@@ -93,16 +93,16 @@ class AdmissionController extends Controller
             $query->where('admission_date', '<=', Carbon::parse($request->query('to')));
         }
 
-        $admissions = $query->latest('admission_date')->paginate($request->integer('per_page', 15));
+        $admissions = $query->latest('admission_date')->get();
 
-        $admissions->getCollection()->each(function (Admission $admission): void {
+        $admissions->each(function (Admission $admission): void {
             $charges = $this->invoiceService->previewCharges($admission);
             $admission->total_charges = $charges['total'];
             $admission->paid_total = $charges['deposits_total'];
             $admission->balance_due = $charges['balance_due'];
         });
 
-        return response()->json($admissions);
+        return response()->json(['data' => $admissions]);
     }
 
     public function store(StoreAdmissionRequest $request, WhatsAppService $whatsApp): JsonResponse
