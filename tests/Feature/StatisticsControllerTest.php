@@ -36,6 +36,18 @@ class StatisticsControllerTest extends TestCase
         $response->assertJsonFragment(['ward_id' => $occupiedBed->room->ward_id]);
     }
 
+    public function test_occupancy_reports_todays_discharge_count(): void
+    {
+        $user = User::factory()->create();
+        Admission::factory()->create(['status' => 'discharged', 'discharge_date' => now()]);
+        Admission::factory()->create(['status' => 'discharged', 'discharge_date' => now()->subDay()]);
+        Admission::factory()->create(['status' => 'admitted']);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/statistics/occupancy');
+
+        $response->assertOk()->assertJsonPath('summary.discharged_today', 1);
+    }
+
     public function test_admissions_statistics_are_scoped_to_the_requested_range(): void
     {
         $user = User::factory()->create();

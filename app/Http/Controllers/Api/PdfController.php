@@ -8,6 +8,7 @@ use App\Models\AdmissionDeposit;
 use App\Models\Invoice;
 use App\Models\Operation;
 use App\Models\User;
+use App\Services\AdmissionService;
 use App\Services\OperationService;
 use App\Services\PdfDocumentService;
 use Illuminate\Http\Request;
@@ -89,6 +90,20 @@ class PdfController extends Controller
             $list,
             $request->filled('date_from') ? (string) $request->query('date_from') : null,
             $request->filled('date_to') ? (string) $request->query('date_to') : null,
+        );
+    }
+
+    public function admissionsPaymentsReport(Request $request, AdmissionService $admissions): Response
+    {
+        $list = $admissions->filteredQuery($request)
+            ->with(['patient.admittingDoctor', 'bed.room.ward.floor', 'requestedServices', 'deposits'])
+            ->latest('admission_date')
+            ->get();
+
+        return $this->documents->admissionsPaymentsReport(
+            $list,
+            $request->filled('from') ? (string) $request->query('from') : null,
+            $request->filled('to') ? (string) $request->query('to') : null,
         );
     }
 }

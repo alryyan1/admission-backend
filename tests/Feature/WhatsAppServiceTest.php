@@ -61,7 +61,7 @@ class WhatsAppServiceTest extends TestCase
 
         app(WhatsAppService::class)->sendTemplate(
             toPhone: '01012345678',
-            templateName: 'operation_team_pdf',
+            templateName: 'operation_team_pdf2',
             languageCode: 'ar',
             bodyParameters: [['type' => 'text', 'text' => 'استئصال الزائدة']],
             headerParameters: [['type' => 'document', 'document' => ['id' => 'media-123', 'filename' => 'team.pdf']]],

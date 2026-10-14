@@ -12,6 +12,17 @@ use Illuminate\Http\Response;
 
 class ExpenseController extends Controller
 {
+    /**
+     * Distinct categories already used on recorded expenses, so the category picker can
+     * offer previously typed-in categories alongside its fixed suggestions.
+     */
+    public function categories(): JsonResponse
+    {
+        return response()->json(
+            Expense::query()->distinct()->orderBy('category')->pluck('category')
+        );
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = Expense::query()->with(['paymentMethod', 'recordedBy']);

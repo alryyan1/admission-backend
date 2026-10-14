@@ -28,6 +28,11 @@ class StatisticsController extends Controller
 
         $availableRooms = Room::query()->whereHas('beds', fn ($query) => $query->where('status', 'available'))->count();
 
+        $dischargedToday = Admission::query()
+            ->where('status', 'discharged')
+            ->whereDate('discharge_date', Carbon::today())
+            ->count();
+
         $byWard = Bed::query()
             ->join('rooms', 'rooms.id', '=', 'beds.room_id')
             ->join('wards', 'wards.id', '=', 'rooms.ward_id')
@@ -47,6 +52,7 @@ class StatisticsController extends Controller
                 'available_beds' => $availableBeds,
                 'available_rooms' => $availableRooms,
                 'maintenance_beds' => $maintenanceBeds,
+                'discharged_today' => $dischargedToday,
                 'occupancy_rate' => $totalBeds > 0 ? round($occupiedBeds / $totalBeds * 100, 1) : 0,
             ],
             'by_ward' => $byWard,

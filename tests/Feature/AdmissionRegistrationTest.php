@@ -71,6 +71,36 @@ class AdmissionRegistrationTest extends TestCase
         $this->assertDatabaseCount('admissions', 0);
     }
 
+    public function test_registering_a_patient_with_an_active_admission_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        Admission::factory()->withoutBed()->create(['patient_id' => $patient->id, 'status' => 'admitted']);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/admissions/register', [
+            'patient_id' => $patient->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['patient_id']);
+
+        $this->assertDatabaseCount('admissions', 1);
+    }
+
+    public function test_registering_a_patient_with_only_a_discharged_admission_is_allowed(): void
+    {
+        $user = User::factory()->create();
+        $patient = Patient::factory()->create();
+        Admission::factory()->withoutBed()->create([
+            'patient_id' => $patient->id,
+            'status' => 'discharged',
+            'discharge_date' => now(),
+        ]);
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/admissions/register', [
+            'patient_id' => $patient->id,
+        ])->assertCreated();
+
+        $this->assertDatabaseCount('admissions', 2);
+    }
+
     public function test_registering_is_forbidden_for_roles_outside_admission_clerk_and_admin(): void
     {
         $nurse = User::factory()->role('nurse')->create();
@@ -231,6 +261,61 @@ class AdmissionRegistrationTest extends TestCase
         (new SendAdmissionWhatsAppNotice($admission))->handle(app(WhatsAppService::class));
 
         $this->assertNull($admission->refresh()->bed_id);
+    }
+
+    public function test_transferring_a_bed_moves_the_admission_and_frees_the_old_bed(): void
+    {
+        $oldBed = Bed::factory()->create(['status' => 'occupied']);
+        $admission = Admission::factory()->create(['bed_id' => $oldBed->id]);
+        $newBed = Bed::factory()->create(['status' => 'available']);
+
+        $this->actingAs(User::factory()->create(), 'sanctum')
+            ->patchJson("/api/admissions/{$admission->id}/bed/transfer", ['bed_id' => $newBed->id])
+            ->assertOk()
+            ->assertJsonPath('bed_id', $newBed->id);
+
+        $this->assertSame($newBed->id, $admission->refresh()->bed_id);
+        $this->assertSame('occupied', $newBed->refresh()->status);
+        $this->assertSame('available', $oldBed->refresh()->status);
+    }
+
+    public function test_transferring_a_bed_to_an_unavailable_bed_is_rejected_and_keeps_the_old_one(): void
+    {
+        $oldBed = Bed::factory()->create(['status' => 'occupied']);
+        $admission = Admission::factory()->create(['bed_id' => $oldBed->id]);
+        $occupiedBed = Bed::factory()->create(['status' => 'occupied']);
+
+        $this->actingAs(User::factory()->create(), 'sanctum')
+            ->patchJson("/api/admissions/{$admission->id}/bed/transfer", ['bed_id' => $occupiedBed->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['bed_id']);
+
+        $this->assertSame($oldBed->id, $admission->refresh()->bed_id);
+        $this->assertSame('occupied', $oldBed->refresh()->status);
+    }
+
+    public function test_transferring_a_bed_from_a_bedless_admission_is_rejected(): void
+    {
+        $admission = Admission::factory()->withoutBed()->create();
+        $newBed = Bed::factory()->create(['status' => 'available']);
+
+        $this->actingAs(User::factory()->create(), 'sanctum')
+            ->patchJson("/api/admissions/{$admission->id}/bed/transfer", ['bed_id' => $newBed->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['bed_id']);
+    }
+
+    public function test_transferring_a_bed_is_forbidden_for_doctors(): void
+    {
+        $oldBed = Bed::factory()->create(['status' => 'occupied']);
+        $admission = Admission::factory()->create(['bed_id' => $oldBed->id]);
+        $newBed = Bed::factory()->create(['status' => 'available']);
+
+        $this->actingAs(User::factory()->role('doctor')->create(), 'sanctum')
+            ->patchJson("/api/admissions/{$admission->id}/bed/transfer", ['bed_id' => $newBed->id])
+            ->assertForbidden();
+
+        $this->assertSame($oldBed->id, $admission->refresh()->bed_id);
     }
 
     public function test_releasing_a_bed_clears_it_from_the_admission_and_makes_the_bed_available(): void

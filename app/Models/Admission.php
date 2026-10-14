@@ -51,6 +51,7 @@ class Admission extends Model
         'admission_date' => 'datetime',
         'discharge_date' => 'datetime',
         'cancelled_at' => 'datetime',
+        'doctor_notice_sent_at' => 'datetime',
     ];
 
     protected static function booted(): void

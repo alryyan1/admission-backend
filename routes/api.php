@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AdmissionController;
 use App\Http\Controllers\Api\AdmissionDepositController;
 use App\Http\Controllers\Api\AdmissionInvoiceController;
+use App\Http\Controllers\Api\AdmissionRevenueReportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BackupController;
 use App\Http\Controllers\Api\BedController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Api\DoctorOrderController;
 use App\Http\Controllers\Api\DoctorRevenueReportController;
 use App\Http\Controllers\Api\ExcelController;
 use App\Http\Controllers\Api\ExpenseController;
+use App\Http\Controllers\Api\ExpensesReportController;
 use App\Http\Controllers\Api\FacilitySettingController;
 use App\Http\Controllers\Api\FloorController;
 use App\Http\Controllers\Api\InsuranceCompanyController;
@@ -110,6 +112,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('payment-methods', PaymentMethodController::class)->only(['index']);
     Route::apiResource('payment-methods', PaymentMethodController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
 
+    Route::get('/expenses/categories', [ExpenseController::class, 'categories'])->middleware('role:admin,cashier');
     Route::apiResource('expenses', ExpenseController::class)->middleware('role:admin,cashier');
 
     Route::middleware('role:admin')->group(function () {
@@ -137,6 +140,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admissions', [AdmissionController::class, 'store'])->middleware('role:admin,admission_clerk');
     Route::post('/admissions/register', [AdmissionController::class, 'register'])->middleware('role:admin,admission_clerk');
     Route::patch('/admissions/{admission}/bed', [AdmissionController::class, 'assignBed'])->middleware('role:admin,admission_clerk');
+    Route::patch('/admissions/{admission}/bed/transfer', [AdmissionController::class, 'transferBed'])->middleware('role:admin,admission_clerk');
     Route::delete('/admissions/{admission}/bed', [AdmissionController::class, 'releaseBed'])->middleware('role:admin,admission_clerk');
     Route::patch('/admissions/{admission}', [AdmissionController::class, 'update'])->middleware('role:admin,admission_clerk,doctor');
     Route::patch('/admissions/{admission}/discharge', [AdmissionController::class, 'discharge'])->middleware('role:admin,doctor');
@@ -203,6 +207,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/payments', [PaymentsReportController::class, 'index'])->middleware('role:admin,cashier');
     Route::get('/reports/payments/recorders', [PaymentsReportController::class, 'recorders'])->middleware('role:admin,cashier');
     Route::get('/reports/payments.pdf', [PdfController::class, 'paymentsReport'])->middleware('role:admin,cashier');
+    Route::get('/reports/expenses', [ExpensesReportController::class, 'index'])->middleware('role:admin,cashier');
+    Route::get('/reports/admission-revenue', [AdmissionRevenueReportController::class, 'index'])->middleware('role:admin,cashier');
+    Route::get('/reports/admissions-payments.pdf', [PdfController::class, 'admissionsPaymentsReport']);
 
     Route::get('/statistics/occupancy', [StatisticsController::class, 'occupancy']);
     Route::get('/statistics/admissions', [StatisticsController::class, 'admissions']);

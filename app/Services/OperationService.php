@@ -49,6 +49,10 @@ class OperationService
             $query->where('surgeon_id', $request->integer('surgeon_id'));
         }
 
+        if ($request->filled('procedure_id')) {
+            $query->where('procedure_id', $request->integer('procedure_id'));
+        }
+
         if ($request->filled('date')) {
             $query->whereDate('scheduled_at', $request->date('date'));
         }

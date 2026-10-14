@@ -133,6 +133,20 @@ class OperationTest extends TestCase
         $this->assertCount(1, $response->json('data'));
     }
 
+    public function test_global_listing_filters_by_procedure(): void
+    {
+        $user = User::factory()->create();
+        $procedure = Procedure::factory()->create();
+        $matching = Operation::factory()->create(['procedure_id' => $procedure->id]);
+        Operation::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/operations?procedure_id={$procedure->id}");
+
+        $response->assertOk();
+        $this->assertSame([$matching->id], collect($response->json('data'))->pluck('id')->all());
+    }
+
     public function test_global_listing_filters_by_created_at_date_range(): void
     {
         $user = User::factory()->create();

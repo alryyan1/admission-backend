@@ -601,6 +601,69 @@ class PdfDocumentService
     }
 
     /**
+     * @param  Collection<int, Admission>  $admissions
+     */
+    public function admissionsPaymentsReport(Collection $admissions, ?string $dateFrom, ?string $dateTo): Response
+    {
+        $pdf = $this->renderer->make('تقرير بيانات التنويم والمدفوعات', 'L', 'A4');
+
+        $pdf->metaRow(
+            'من: '.($dateFrom ? $this->date($dateFrom) : '—'),
+            'إلى: '.($dateTo ? $this->date($dateTo) : '—'),
+            'تاريخ الطباعة: '.$this->dateTime(now())
+        );
+        $pdf->spacing(3);
+
+        $cw = $pdf->contentWidth();
+        $widths = [$cw * 0.22, $cw * 0.18, $cw * 0.12, $cw * 0.12, $cw * 0.14, $cw * 0.11, $cw * 0.11];
+        $pdf->tableHeader([
+            ['label' => 'اسم المريض', 'width' => $widths[0]],
+            ['label' => 'الأخصائي', 'width' => $widths[1]],
+            ['label' => 'الطابق', 'width' => $widths[2]],
+            ['label' => 'الغرفة', 'width' => $widths[3]],
+            ['label' => 'مدة التنويم', 'width' => $widths[4]],
+            ['label' => 'المدفوع', 'width' => $widths[5]],
+            ['label' => 'المطلوب', 'width' => $widths[6]],
+        ]);
+
+        if ($admissions->isEmpty()) {
+            $pdf->tableEmptyRow('لا توجد بيانات تنويم ضمن الفترة المحددة');
+        }
+
+        $paidTotal = 0.0;
+        $dueTotal = 0.0;
+
+        foreach ($admissions as $admission) {
+            $charges = $this->invoices->previewCharges($admission);
+            $paid = (float) $charges['deposits_total'];
+            $due = (float) $charges['balance_due'];
+
+            $paidTotal += $paid;
+            $dueTotal += $due;
+
+            $pdf->tableRow([
+                $admission->patient?->name ?? '—',
+                $admission->patient?->admittingDoctor?->name ?? '—',
+                $admission->bed?->room?->ward?->floor?->name ?? '—',
+                $admission->bed?->room?->room_number ?? '—',
+                $admission->nightsStayed().' ليلة',
+                $this->money($paid),
+                $this->money($due),
+            ], $widths);
+        }
+
+        $pdf->totalsBlock([
+            ['label' => 'عدد التنويمات', 'value' => (string) $admissions->count()],
+            ['label' => 'إجمالي المدفوع', 'value' => $this->money($paidTotal), 'bold' => true],
+            ['label' => 'إجمالي المطلوب', 'value' => $this->money($dueTotal), 'bold' => true, 'big' => true],
+        ]);
+
+        $pdf->signatureRow('توقيع المسؤول', 'ملاحظات');
+
+        return $this->renderer->toResponse($pdf, 'admissions-payments-report-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    /**
      * @param  array<int, array{name: string, quantity: int, total: string}>  $lines
      */
     private function renderInvoice(

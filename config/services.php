@@ -54,7 +54,7 @@ return [
             'language' => env('WHATSAPP_DOCTOR_ADMISSION_TEMPLATE_LANGUAGE', 'ar'),
         ],
         'operation_team_template' => [
-            'name' => env('WHATSAPP_OPERATION_TEAM_TEMPLATE_NAME', 'operation_team_pdf'),
+            'name' => env('WHATSAPP_OPERATION_TEAM_TEMPLATE_NAME', 'operation_team_pdf2'),
             'language' => env('WHATSAPP_OPERATION_TEAM_TEMPLATE_LANGUAGE', 'ar'),
         ],
         'operation_invoice_template' => [

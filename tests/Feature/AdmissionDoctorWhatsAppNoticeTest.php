@@ -51,7 +51,10 @@ class AdmissionDoctorWhatsAppNoticeTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('whatsapp_doctor_notice.sent', true)
-            ->assertJsonPath('whatsapp_doctor_notice.message', 'تم إرسال إشعار واتساب للطبيب المحوِّل بنجاح.');
+            ->assertJsonPath('whatsapp_doctor_notice.message', 'تم إرسال إشعار واتساب للطبيب المحوِّل بنجاح.')
+            ->assertJsonPath('whatsapp_doctor_notice.response.messages.0.id', 'wamid.test');
+
+        $this->assertNotNull(Admission::find($response->json('id'))->doctor_notice_sent_at);
 
         Http::assertSent(function ($request) use ($ward) {
             $params = $request['template']['components'][0]['parameters'];

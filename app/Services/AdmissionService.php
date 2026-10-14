@@ -9,11 +9,57 @@ use App\Models\ChartOpeningServiceSetting;
 use App\Models\Patient;
 use App\Models\Service;
 use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class AdmissionService
 {
+    /**
+     * The status/patient/search/bed-room/date filters shared by the admissions listing
+     * and the admissions payments PDF report.
+     */
+    public function filteredQuery(Request $request): Builder
+    {
+        $query = Admission::query();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        if ($request->filled('patient_id')) {
+            $query->where('patient_id', $request->integer('patient_id'));
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->string('search');
+            $query->whereHas('patient', fn ($patientQuery) => $patientQuery->where('name', 'like', "%{$search}%"));
+        }
+
+        if ($request->filled('admission_id')) {
+            $query->where('id', $request->integer('admission_id'));
+        }
+
+        if ($request->filled('bed_id')) {
+            $query->where('bed_id', $request->integer('bed_id'));
+        } elseif ($request->filled('room_id')) {
+            $roomId = $request->integer('room_id');
+            $query->whereHas('bed', fn ($bedQuery) => $bedQuery->where('room_id', $roomId));
+        }
+
+        if ($request->filled('from')) {
+            $query->where('admission_date', '>=', Carbon::parse($request->query('from')));
+        }
+
+        if ($request->filled('to')) {
+            $query->where('admission_date', '<=', Carbon::parse($request->query('to')));
+        }
+
+        return $query;
+    }
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -52,6 +98,18 @@ class AdmissionService
     public function registerPatient(Patient $patient, User $user): Admission
     {
         return DB::transaction(function () use ($patient, $user) {
+            $hasActiveAdmission = Admission::query()
+                ->where('patient_id', $patient->id)
+                ->where('status', 'admitted')
+                ->lockForUpdate()
+                ->exists();
+
+            if ($hasActiveAdmission) {
+                throw ValidationException::withMessages([
+                    'patient_id' => ['هذا المريض لديه تنويم نشط بالفعل.'],
+                ]);
+            }
+
             $admission = Admission::create([
                 'patient_id' => $patient->id,
                 'admitted_by' => $user->id,
@@ -99,6 +157,39 @@ class AdmissionService
     /**
      * Clears the bed from an active admission and makes that bed available again.
      */
+    /**
+     * Moves an already-admitted, already-bedded patient to a different bed in one step
+     * (e.g. out of a private room into a ward), freeing the old bed and occupying the new one.
+     */
+    public function transferBed(Admission $admission, int $newBedId): Admission
+    {
+        return DB::transaction(function () use ($admission, $newBedId) {
+            $lockedAdmission = Admission::query()->whereKey($admission->getKey())->lockForUpdate()->firstOrFail();
+
+            if ($lockedAdmission->status !== 'admitted' || $lockedAdmission->bed_id === null) {
+                throw ValidationException::withMessages([
+                    'bed_id' => ['لا يمكن نقل السرير لهذا التنويم.'],
+                ]);
+            }
+
+            $newBed = Bed::whereKey($newBedId)->lockForUpdate()->firstOrFail();
+
+            if ($newBed->status !== 'available') {
+                throw ValidationException::withMessages([
+                    'bed_id' => ['السرير غير متاح للتنويم حالياً.'],
+                ]);
+            }
+
+            $oldBed = Bed::whereKey($lockedAdmission->bed_id)->lockForUpdate()->firstOrFail();
+
+            $lockedAdmission->update(['bed_id' => $newBed->id]);
+            $newBed->update(['status' => 'occupied']);
+            $oldBed->update(['status' => 'available']);
+
+            return $lockedAdmission;
+        });
+    }
+
     public function releaseBed(Admission $admission): Admission
     {
         return DB::transaction(function () use ($admission) {

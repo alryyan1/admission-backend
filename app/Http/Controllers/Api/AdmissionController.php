@@ -15,7 +15,6 @@ use App\Models\Patient;
 use App\Services\AdmissionService;
 use App\Services\InvoiceService;
 use App\Services\WhatsAppService;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -56,44 +55,14 @@ class AdmissionController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Admission::with([
-            'patient.insuranceCompany', 'patient.admittingDoctor', 'patient.referredByDoctor', 'bed.room.ward.floor',
-            'requestedServices', 'operations.procedure', 'deposits',
-        ])->withCount('operations');
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
-        }
-
-        if ($request->filled('patient_id')) {
-            $query->where('patient_id', $request->integer('patient_id'));
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->string('search');
-            $query->whereHas('patient', fn ($patientQuery) => $patientQuery->where('name', 'like', "%{$search}%"));
-        }
-
-        if ($request->filled('admission_id')) {
-            $query->where('id', $request->integer('admission_id'));
-        }
-
-        if ($request->filled('bed_id')) {
-            $query->where('bed_id', $request->integer('bed_id'));
-        } elseif ($request->filled('room_id')) {
-            $roomId = $request->integer('room_id');
-            $query->whereHas('bed', fn ($bedQuery) => $bedQuery->where('room_id', $roomId));
-        }
-
-        if ($request->filled('from')) {
-            $query->where('admission_date', '>=', Carbon::parse($request->query('from')));
-        }
-
-        if ($request->filled('to')) {
-            $query->where('admission_date', '<=', Carbon::parse($request->query('to')));
-        }
-
-        $admissions = $query->latest('admission_date')->get();
+        $admissions = $this->admissionService->filteredQuery($request)
+            ->with([
+                'patient.insuranceCompany', 'patient.admittingDoctor', 'patient.referredByDoctor', 'bed.room.ward.floor',
+                'requestedServices', 'operations.procedure', 'deposits',
+            ])
+            ->withCount('operations')
+            ->latest('admission_date')
+            ->get();
 
         $admissions->each(function (Admission $admission): void {
             $charges = $this->invoiceService->previewCharges($admission);
@@ -118,7 +87,7 @@ class AdmissionController extends Controller
      * Sends the admission_doctor_notice WhatsApp template to the patient's referring doctor,
      * synchronously, so the admission response can report the outcome for an immediate toast.
      *
-     * @return array{sent: bool, message: string}
+     * @return array{sent: bool, message: string, response?: array<string, mixed>}
      */
     private function sendDoctorAdmissionNotice(Admission $admission, WhatsAppService $whatsApp): array
     {
@@ -137,7 +106,7 @@ class AdmissionController extends Controller
             : '-';
 
         try {
-            $whatsApp->sendTemplate(
+            $response = $whatsApp->sendTemplate(
                 toPhone: $doctor->phone,
                 templateName: (string) config('services.whatsapp.doctor_admission_template.name'),
                 languageCode: (string) config('services.whatsapp.doctor_admission_template.language'),
@@ -153,7 +122,13 @@ class AdmissionController extends Controller
                 ],
             );
 
-            return ['sent' => true, 'message' => 'تم إرسال إشعار واتساب للطبيب المحوِّل بنجاح.'];
+            $admission->forceFill(['doctor_notice_sent_at' => now()])->saveQuietly();
+
+            return [
+                'sent' => true,
+                'message' => 'تم إرسال إشعار واتساب للطبيب المحوِّل بنجاح.',
+                'response' => $response->json(),
+            ];
         } catch (\Throwable $exception) {
             return ['sent' => false, 'message' => 'تعذر إرسال إشعار واتساب للطبيب المحوِّل: '.$exception->getMessage()];
         }
@@ -174,6 +149,13 @@ class AdmissionController extends Controller
         $admission->whatsapp_doctor_notice = $this->sendDoctorAdmissionNotice($admission, $whatsApp);
 
         return response()->json($admission);
+    }
+
+    public function transferBed(AssignAdmissionBedRequest $request, Admission $admission): JsonResponse
+    {
+        $admission = $this->admissionService->transferBed($admission, $request->integer('bed_id'));
+
+        return response()->json($admission->load($this->showRelations()));
     }
 
     public function releaseBed(Admission $admission): JsonResponse

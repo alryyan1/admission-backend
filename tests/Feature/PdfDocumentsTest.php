@@ -260,6 +260,26 @@ class PdfDocumentsTest extends TestCase
         );
     }
 
+    public function test_admissions_payments_report_pdf(): void
+    {
+        $user = User::factory()->create();
+        $admission = $this->admissionWithActivity();
+        $admission->deposits()->create(['amount' => 5000, 'paid_at' => now()]);
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get('/api/reports/admissions-payments.pdf')
+        );
+    }
+
+    public function test_admissions_payments_report_pdf_with_no_matching_admissions(): void
+    {
+        $user = User::factory()->create();
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get('/api/reports/admissions-payments.pdf?status=cancelled')
+        );
+    }
+
     public function test_pdf_endpoints_require_authentication(): void
     {
         $admission = Admission::factory()->create();
