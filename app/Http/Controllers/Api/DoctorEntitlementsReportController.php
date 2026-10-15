@@ -17,10 +17,10 @@ class DoctorEntitlementsReportController extends Controller
 
         $members = OperationTeamMember::query()
             ->whereNotNull('entitlement_amount')
-            ->whereHas('operation', fn ($query) => $query->whereBetween('scheduled_at', [$from, $to]))
+            ->whereHas('operation', fn ($query) => $query->whereBetween('created_at', [$from, $to]))
             ->with(['operation.admission.patient', 'operation.procedure', 'doctor', 'role', 'paymentMethod'])
             ->get()
-            ->sortByDesc(fn (OperationTeamMember $member) => $member->operation->scheduled_at)
+            ->sortByDesc(fn (OperationTeamMember $member) => $member->operation->created_at)
             ->values();
 
         return response()->json([
@@ -30,11 +30,12 @@ class DoctorEntitlementsReportController extends Controller
                 'total' => (float) $members->sum('entitlement_amount'),
             ],
             'doctors' => $this->groupByDoctor($members),
+            'by_method' => $this->groupByMethod($members),
             'entitlements' => $members->map(fn (OperationTeamMember $member) => [
                 'id' => $member->id,
                 'operation_id' => $member->operation_id,
                 'operation_number' => $member->operation->operation_number,
-                'scheduled_at' => $member->operation->scheduled_at?->toIso8601String(),
+                'created_at' => $member->operation->created_at?->toIso8601String(),
                 'patient_name' => $member->operation->admission?->patient?->name,
                 'procedure_name' => $member->operation->procedure?->name_ar,
                 'doctor_name' => $this->memberName($member),
@@ -59,6 +60,23 @@ class DoctorEntitlementsReportController extends Controller
                 'name' => $this->memberName($rows->first()),
                 'role' => $rows->first()->role?->name,
                 'operations_count' => $rows->pluck('operation_id')->unique()->count(),
+                'total' => (float) $rows->sum('entitlement_amount'),
+            ])
+            ->sortByDesc('total')
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, OperationTeamMember>  $members
+     * @return Collection<int, array{method: string, count: int, total: float}>
+     */
+    private function groupByMethod(Collection $members): Collection
+    {
+        return $members
+            ->groupBy(fn (OperationTeamMember $member) => $member->paymentMethod?->name ?? 'غير محدد')
+            ->map(fn (Collection $rows, string $method) => [
+                'method' => $method,
+                'count' => $rows->count(),
                 'total' => (float) $rows->sum('entitlement_amount'),
             ])
             ->sortByDesc('total')

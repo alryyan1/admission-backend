@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Doctor;
 use App\Models\Operation;
 use App\Models\OperationTeamMember;
+use App\Models\PaymentMethod;
 use App\Models\TeamRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,8 +22,10 @@ class DoctorEntitlementsReportTest extends TestCase
         $anesthetist = Doctor::factory()->create(['name' => 'د. سارة']);
         $role = TeamRole::factory()->create(['name' => 'جراح']);
 
-        $firstOperation = Operation::factory()->create(['scheduled_at' => '2026-10-03 09:00:00']);
-        $secondOperation = Operation::factory()->create(['scheduled_at' => '2026-10-20 10:00:00']);
+        $firstOperation = Operation::factory()->create();
+        $firstOperation->forceFill(['created_at' => '2026-10-03 09:00:00'])->save();
+        $secondOperation = Operation::factory()->create();
+        $secondOperation->forceFill(['created_at' => '2026-10-20 10:00:00'])->save();
 
         OperationTeamMember::factory()->create([
             'operation_id' => $firstOperation->id,
@@ -60,13 +63,57 @@ class DoctorEntitlementsReportTest extends TestCase
             ->assertJsonCount(3, 'entitlements');
     }
 
+    public function test_entitlements_are_grouped_by_payment_method(): void
+    {
+        $cashier = User::factory()->create(['role' => 'cashier']);
+        $bank = PaymentMethod::factory()->create(['name' => 'بنكك']);
+        $cash = PaymentMethod::factory()->create(['name' => 'نقدي']);
+        $operation = Operation::factory()->create();
+        $operation->forceFill(['created_at' => '2026-10-10 10:00:00'])->save();
+
+        OperationTeamMember::factory()->create([
+            'operation_id' => $operation->id,
+            'entitlement_amount' => 300,
+            'payment_method_id' => $bank->id,
+        ]);
+        OperationTeamMember::factory()->create([
+            'operation_id' => $operation->id,
+            'entitlement_amount' => 200,
+            'payment_method_id' => $bank->id,
+        ]);
+        OperationTeamMember::factory()->create([
+            'operation_id' => $operation->id,
+            'entitlement_amount' => 100,
+            'payment_method_id' => $cash->id,
+        ]);
+        OperationTeamMember::factory()->create([
+            'operation_id' => $operation->id,
+            'entitlement_amount' => 50,
+            'payment_method_id' => null,
+        ]);
+
+        $response = $this->actingAs($cashier, 'sanctum')->getJson('/api/reports/doctor-entitlements?from=2026-10-01&to=2026-10-31');
+
+        $response->assertOk()
+            ->assertJsonCount(3, 'by_method')
+            ->assertJsonPath('by_method.0.method', 'بنكك')
+            ->assertJsonPath('by_method.0.count', 2)
+            ->assertJsonPath('by_method.0.total', 500)
+            ->assertJsonPath('by_method.1.method', 'نقدي')
+            ->assertJsonPath('by_method.1.total', 100)
+            ->assertJsonPath('by_method.2.method', 'غير محدد')
+            ->assertJsonPath('by_method.2.total', 50);
+    }
+
     public function test_entitlements_outside_the_date_range_are_excluded(): void
     {
         $cashier = User::factory()->create(['role' => 'cashier']);
         $doctor = Doctor::factory()->create();
 
-        $earlier = Operation::factory()->create(['scheduled_at' => '2026-09-30 23:00:00']);
-        $later = Operation::factory()->create(['scheduled_at' => '2026-11-01 00:30:00']);
+        $earlier = Operation::factory()->create();
+        $earlier->forceFill(['created_at' => '2026-09-30 23:00:00'])->save();
+        $later = Operation::factory()->create();
+        $later->forceFill(['created_at' => '2026-11-01 00:30:00'])->save();
 
         OperationTeamMember::factory()->create(['operation_id' => $earlier->id, 'doctor_id' => $doctor->id, 'entitlement_amount' => 700]);
         OperationTeamMember::factory()->create(['operation_id' => $later->id, 'doctor_id' => $doctor->id, 'entitlement_amount' => 900]);
@@ -82,7 +129,8 @@ class DoctorEntitlementsReportTest extends TestCase
     public function test_team_members_without_an_entitlement_amount_are_excluded(): void
     {
         $cashier = User::factory()->create(['role' => 'cashier']);
-        $operation = Operation::factory()->create(['scheduled_at' => '2026-10-10 10:00:00']);
+        $operation = Operation::factory()->create();
+        $operation->forceFill(['created_at' => '2026-10-10 10:00:00'])->save();
 
         OperationTeamMember::factory()->create([
             'operation_id' => $operation->id,
@@ -100,7 +148,8 @@ class DoctorEntitlementsReportTest extends TestCase
     public function test_members_without_a_linked_doctor_are_grouped_by_their_free_text_name(): void
     {
         $cashier = User::factory()->create(['role' => 'cashier']);
-        $operation = Operation::factory()->create(['scheduled_at' => '2026-10-10 10:00:00']);
+        $operation = Operation::factory()->create();
+        $operation->forceFill(['created_at' => '2026-10-10 10:00:00'])->save();
 
         OperationTeamMember::factory()->create([
             'operation_id' => $operation->id,
