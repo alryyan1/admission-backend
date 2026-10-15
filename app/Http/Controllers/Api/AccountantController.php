@@ -14,6 +14,7 @@ class AccountantController extends Controller
     {
         $teamMember->loadMissing('operation.admission');
         $teamMember->operation->admission->assertMutable($request->user());
+        $teamMember->operation->assertEntitlementsEditable($request->user());
 
         $validated = $request->validated();
 

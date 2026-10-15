@@ -43,13 +43,16 @@ class AdmissionController extends Controller
             'doctorOrders.orderedBy',
             'deposits.paymentMethod',
             'deposits.paidBy',
-            'requestedServices',
+            'requestedServices.paymentMethod',
+            'requestedServices.deposits',
             'invoices',
             'operations.teamMembers.doctor',
             'operations.teamMembers.role',
             'operations.supplies',
             'operations.procedure.category',
             'operations.surgeon',
+            'operations.paymentMethod',
+            'operations.deposits',
         ];
     }
 
@@ -58,7 +61,8 @@ class AdmissionController extends Controller
         $admissions = $this->admissionService->filteredQuery($request)
             ->with([
                 'patient.insuranceCompany', 'patient.admittingDoctor', 'patient.referredByDoctor', 'bed.room.ward.floor',
-                'requestedServices', 'operations.procedure', 'deposits',
+                'requestedServices.paymentMethod', 'requestedServices.deposits',
+                'operations.procedure', 'operations.paymentMethod', 'operations.deposits', 'deposits',
             ])
             ->withCount('operations')
             ->latest('admission_date')

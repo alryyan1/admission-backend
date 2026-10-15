@@ -12,6 +12,8 @@ class AdmissionDeposit extends Model
 
     protected $fillable = [
         'admission_id',
+        'requested_service_id',
+        'operation_id',
         'paid_by',
         'amount',
         'payment_method_id',
@@ -53,6 +55,16 @@ class AdmissionDeposit extends Model
     public function paymentMethod(): BelongsTo
     {
         return $this->belongsTo(PaymentMethod::class);
+    }
+
+    public function requestedService(): BelongsTo
+    {
+        return $this->belongsTo(RequestedService::class);
+    }
+
+    public function operation(): BelongsTo
+    {
+        return $this->belongsTo(Operation::class);
     }
 
     public function getPaidByNameAttribute(): ?string

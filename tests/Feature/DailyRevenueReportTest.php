@@ -56,8 +56,25 @@ class DailyRevenueReportTest extends TestCase
         $response = $this->actingAs($cashier, 'sanctum')->getJson('/api/reports/daily-revenue?month=2026-10');
 
         $response->assertOk()
-            ->assertJsonCount(0, 'payment_methods')
-            ->assertJsonPath('totals.total', 0);
+            ->assertJsonPath('totals.total', 0)
+            ->assertJsonPath('totals.amounts.method_'.$cash->id, 0);
+    }
+
+    public function test_payment_methods_with_no_activity_still_get_a_zero_column(): void
+    {
+        $cashier = User::factory()->create(['role' => 'cashier']);
+        $cash = PaymentMethod::factory()->create(['name' => 'نقدي']);
+        $unused = PaymentMethod::factory()->create(['name' => 'تحويل بنكي']);
+
+        AdmissionDeposit::factory()->create(['payment_method_id' => $cash->id, 'amount' => 400, 'paid_at' => '2026-10-07 09:00:00']);
+
+        $response = $this->actingAs($cashier, 'sanctum')->getJson('/api/reports/daily-revenue?month=2026-10');
+
+        $response->assertOk()->assertJsonCount(2, 'payment_methods');
+
+        $this->assertEquals(0.0, $response->json('totals.amounts.method_'.$unused->id));
+        $days = collect($response->json('days'))->keyBy('date');
+        $this->assertEquals(0.0, $days['2026-10-07']['amounts']['method_'.$unused->id]);
     }
 
     public function test_deposits_without_a_payment_method_are_grouped_as_unassigned(): void

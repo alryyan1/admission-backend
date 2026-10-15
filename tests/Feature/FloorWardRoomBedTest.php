@@ -126,6 +126,50 @@ class FloorWardRoomBedTest extends TestCase
         $this->assertDatabaseHas('beds', ['id' => $bed->id, 'status' => 'occupied']);
     }
 
+    public function test_setting_room_beds_status_marks_free_beds_as_maintenance(): void
+    {
+        $user = User::factory()->create();
+        $room = Room::factory()->create();
+        $freeBed = Bed::factory()->create(['room_id' => $room->id, 'status' => 'available']);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->patchJson("/api/rooms/{$room->id}/beds-status", ['status' => 'maintenance']);
+
+        $response->assertOk()
+            ->assertJsonPath('updated', 1)
+            ->assertJsonPath('skipped', 0);
+        $this->assertDatabaseHas('beds', ['id' => $freeBed->id, 'status' => 'maintenance']);
+    }
+
+    public function test_setting_room_beds_status_skips_beds_with_an_active_admission(): void
+    {
+        $user = User::factory()->create();
+        $room = Room::factory()->create();
+        $occupiedBed = Bed::factory()->create(['room_id' => $room->id, 'status' => 'occupied']);
+        Admission::factory()->create(['bed_id' => $occupiedBed->id, 'status' => 'admitted']);
+        $freeBed = Bed::factory()->create(['room_id' => $room->id, 'status' => 'available']);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->patchJson("/api/rooms/{$room->id}/beds-status", ['status' => 'maintenance']);
+
+        $response->assertOk()
+            ->assertJsonPath('updated', 1)
+            ->assertJsonPath('skipped', 1);
+        $this->assertDatabaseHas('beds', ['id' => $occupiedBed->id, 'status' => 'occupied']);
+        $this->assertDatabaseHas('beds', ['id' => $freeBed->id, 'status' => 'maintenance']);
+    }
+
+    public function test_setting_room_beds_status_rejects_an_invalid_status(): void
+    {
+        $user = User::factory()->create();
+        $room = Room::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->patchJson("/api/rooms/{$room->id}/beds-status", ['status' => 'occupied']);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['status']);
+    }
+
     public function test_creating_room_with_auto_create_beds_makes_numbered_beds_equal_to_capacity(): void
     {
         $user = User::factory()->create();

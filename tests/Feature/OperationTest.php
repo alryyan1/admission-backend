@@ -65,6 +65,66 @@ class OperationTest extends TestCase
         $this->assertDatabaseHas('operations', ['id' => $operation->id, 'procedure_id' => $newProcedure->id]);
     }
 
+    public function test_paying_an_operation_marks_it_paid_and_creates_a_linked_deposit(): void
+    {
+        $user = User::factory()->role('cashier')->create();
+        $operation = Operation::factory()->create(['price' => 50000]);
+        $paymentMethod = PaymentMethod::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')->postJson(
+            "/api/operations/{$operation->id}/pay",
+            ['payment_method_id' => $paymentMethod->id],
+        );
+
+        $response->assertOk()
+            ->assertJsonPath('is_paid', true)
+            ->assertJsonPath('payment_method.id', $paymentMethod->id);
+        $this->assertDatabaseHas('operations', ['id' => $operation->id, 'payment_method_id' => $paymentMethod->id]);
+        $this->assertDatabaseHas('admission_deposits', [
+            'admission_id' => $operation->admission_id,
+            'operation_id' => $operation->id,
+            'amount' => 50000,
+            'payment_method_id' => $paymentMethod->id,
+        ]);
+    }
+
+    public function test_paying_an_operation_without_a_price_is_rejected(): void
+    {
+        $user = User::factory()->role('cashier')->create();
+        $operation = Operation::factory()->create(['price' => null]);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay");
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['price']);
+    }
+
+    public function test_paying_an_already_paid_operation_is_rejected(): void
+    {
+        $user = User::factory()->role('cashier')->create();
+        $operation = Operation::factory()->create(['price' => 50000]);
+        $operation->admission->deposits()->create(['operation_id' => $operation->id, 'amount' => 50000]);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay");
+
+        $response->assertUnprocessable();
+    }
+
+    public function test_cancelling_an_operation_payment_deletes_its_deposit_and_clears_the_paid_flag(): void
+    {
+        $user = User::factory()->role('cashier')->create();
+        $operation = Operation::factory()->create(['price' => 50000]);
+
+        $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay")->assertOk();
+
+        $response = $this->actingAs($user, 'sanctum')->deleteJson("/api/operations/{$operation->id}/pay");
+
+        $response->assertOk()
+            ->assertJsonPath('is_paid', false)
+            ->assertJsonPath('payment_method_id', null);
+        $this->assertDatabaseHas('operations', ['id' => $operation->id, 'payment_method_id' => null]);
+        $this->assertDatabaseMissing('admission_deposits', ['operation_id' => $operation->id]);
+    }
+
     public function test_validation_requires_surgeon_procedure_and_schedule(): void
     {
         $user = User::factory()->create();
@@ -362,5 +422,83 @@ class OperationTest extends TestCase
 
         $response->assertOk();
         $this->assertDatabaseHas('operations', ['id' => $operation->id, 'procedure_id' => $newProcedure->id]);
+    }
+
+    public function test_cashier_can_approve_the_entitlement_distribution(): void
+    {
+        $cashier = User::factory()->role('cashier')->create();
+        $operation = Operation::factory()->create();
+
+        $response = $this->actingAs($cashier, 'sanctum')->postJson("/api/operations/{$operation->id}/approve-entitlements");
+
+        $response->assertOk();
+        $this->assertTrue($response->json('entitlements_approved'));
+        $this->assertDatabaseHas('operations', [
+            'id' => $operation->id,
+            'entitlements_approved_by' => $cashier->id,
+        ]);
+    }
+
+    public function test_approving_an_already_approved_distribution_is_rejected(): void
+    {
+        $cashier = User::factory()->role('cashier')->create();
+        $operation = Operation::factory()->create(['entitlements_approved_at' => now()]);
+
+        $response = $this->actingAs($cashier, 'sanctum')->postJson("/api/operations/{$operation->id}/approve-entitlements");
+
+        $response->assertUnprocessable();
+    }
+
+    public function test_doctor_cannot_add_a_team_member_once_the_distribution_is_approved(): void
+    {
+        $doctor = User::factory()->role('doctor')->create();
+        $operation = Operation::factory()->create(['entitlements_approved_at' => now()]);
+
+        $response = $this->actingAs($doctor, 'sanctum')
+            ->postJson("/api/operations/{$operation->id}/team-members", [
+                'name' => 'Team member',
+                'role_id' => TeamRole::factory()->create()->id,
+            ]);
+
+        $response->assertUnprocessable();
+        $this->assertDatabaseCount('operation_team_members', 0);
+    }
+
+    public function test_doctor_cannot_remove_a_team_member_once_the_distribution_is_approved(): void
+    {
+        $doctor = User::factory()->role('doctor')->create();
+        $operation = Operation::factory()->create(['entitlements_approved_at' => now()]);
+        $teamMember = OperationTeamMember::factory()->create(['operation_id' => $operation->id]);
+
+        $response = $this->actingAs($doctor, 'sanctum')
+            ->deleteJson("/api/operations/{$operation->id}/team-members/{$teamMember->id}");
+
+        $response->assertUnprocessable();
+        $this->assertDatabaseHas('operation_team_members', ['id' => $teamMember->id]);
+    }
+
+    public function test_cashier_cannot_unapprove_the_entitlement_distribution(): void
+    {
+        $cashier = User::factory()->role('cashier')->create();
+        $operation = Operation::factory()->create(['entitlements_approved_at' => now()]);
+
+        $response = $this->actingAs($cashier, 'sanctum')->deleteJson("/api/operations/{$operation->id}/approve-entitlements");
+
+        $response->assertForbidden();
+    }
+
+    public function test_admin_can_unapprove_the_entitlement_distribution_and_edit_it_again(): void
+    {
+        $admin = User::factory()->role('admin')->create();
+        $operation = Operation::factory()->create(['entitlements_approved_at' => now(), 'entitlements_approved_by' => $admin->id]);
+        $teamMember = OperationTeamMember::factory()->create(['operation_id' => $operation->id]);
+
+        $unapprove = $this->actingAs($admin, 'sanctum')->deleteJson("/api/operations/{$operation->id}/approve-entitlements");
+        $unapprove->assertOk();
+        $this->assertFalse($unapprove->json('entitlements_approved'));
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/accountant/team-members/{$teamMember->id}/entitlement", ['entitlement_amount' => 10]);
+        $response->assertOk();
     }
 }

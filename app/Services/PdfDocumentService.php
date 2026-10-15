@@ -486,58 +486,57 @@ class PdfDocumentService
         return $this->renderer->toResponse($pdf, "revenue-calculator-{$data['date']}.pdf");
     }
 
-    public function paymentsReport(Carbon $from, Carbon $to, ?string $generatedBy, ?int $paidByUserId = null): Response
+    /**
+     * @param  array{month: string, range: array{from: string, to: string}, payment_methods: Collection<int, array{key: string, name: string}>, days: Collection<int, array{date: string, amounts: array<string, float>, total: float}>, totals: array{amounts: array<string, float>, total: float}}  $data
+     */
+    public function dailyRevenueReport(array $data): Response
     {
-        $payments = AdmissionDeposit::query()
-            ->with(['admission.patient', 'paymentMethod'])
-            ->whereBetween('paid_at', [$from, $to])
-            ->when($paidByUserId !== null, fn ($query) => $query->where('paid_by', $paidByUserId))
-            ->orderBy('paid_at')
-            ->get();
+        $paymentMethods = $data['payment_methods'];
+        $methodCount = $paymentMethods->count();
 
-        $pdf = $this->renderer->make('تقرير المدفوعات', 'L', 'A4');
+        $pdf = $this->renderer->make('تقرير الإيراد اليومي', 'L', 'A4');
 
         $pdf->metaRow(
-            'من: '.$this->date($from),
-            'إلى: '.$this->date($to),
+            'الشهر: '.$data['month'],
+            'الفترة: '.$this->date($data['range']['from']).' — '.$this->date($data['range']['to']),
             'تاريخ الطباعة: '.$this->dateTime(now())
         );
         $pdf->spacing(3);
 
         $cw = $pdf->contentWidth();
-        $widths = [$cw * 0.16, $cw * 0.30, $cw * 0.14, $cw * 0.18, $cw * 0.22];
-        $pdf->tableHeader([
-            ['label' => 'التاريخ', 'width' => $widths[0]],
-            ['label' => 'المريض', 'width' => $widths[1]],
-            ['label' => 'رقم التنويم', 'width' => $widths[2]],
-            ['label' => 'طريقة الدفع', 'width' => $widths[3]],
-            ['label' => 'المبلغ', 'width' => $widths[4]],
-        ]);
+        $dateWidth = $cw * 0.14;
+        $totalWidth = $cw * 0.14;
+        $methodWidth = $methodCount > 0 ? ($cw - $dateWidth - $totalWidth) / $methodCount : 0;
+        $widths = [$dateWidth, ...array_fill(0, $methodCount, $methodWidth), $totalWidth];
 
-        if ($payments->isEmpty()) {
-            $pdf->tableEmptyRow('لا توجد مدفوعات ضمن الفترة المحددة');
+        $headerColumns = [['label' => 'التاريخ', 'width' => $dateWidth]];
+        foreach ($paymentMethods as $method) {
+            $headerColumns[] = ['label' => $method['name'], 'width' => $methodWidth];
+        }
+        $headerColumns[] = ['label' => 'الإجمالي', 'width' => $totalWidth];
+        $pdf->tableHeader($headerColumns);
+
+        foreach ($data['days'] as $day) {
+            $cells = [$this->date($day['date'])];
+            foreach ($paymentMethods as $method) {
+                $cells[] = $this->money($day['amounts'][$method['key']] ?? 0);
+            }
+            $cells[] = $this->money($day['total']);
+            $pdf->tableRow($cells, $widths);
         }
 
-        foreach ($payments as $deposit) {
-            $pdf->tableRow([
-                $this->dateTime($deposit->paid_at),
-                $deposit->admission?->patient?->name ?? '—',
-                '#'.$deposit->admission_id,
-                $deposit->paymentMethod?->name ?? '—',
-                $this->money($deposit->amount),
-            ], $widths);
+        $totalsRow = ['إجمالي الشهر'];
+        foreach ($paymentMethods as $method) {
+            $totalsRow[] = $this->money($data['totals']['amounts'][$method['key']] ?? 0);
         }
+        $totalsRow[] = $this->money($data['totals']['total']);
+        $pdf->tableRow($totalsRow, $widths);
 
         $pdf->totalsBlock([
-            ['label' => 'عدد المدفوعات', 'value' => (string) $payments->count()],
-            ['label' => 'إجمالي المدفوعات', 'value' => $this->money($payments->sum('amount')), 'bold' => true, 'big' => true],
+            ['label' => 'إجمالي الشهر', 'value' => $this->money($data['totals']['total']), 'bold' => true, 'big' => true],
         ]);
 
-        if ($generatedBy) {
-            $pdf->mutedCenter('أُعدّ بواسطة: '.$generatedBy);
-        }
-
-        return $this->renderer->toResponse($pdf, "payments-report-{$from->toDateString()}-{$to->toDateString()}.pdf");
+        return $this->renderer->toResponse($pdf, "daily-revenue-report-{$data['month']}.pdf");
     }
 
     /**

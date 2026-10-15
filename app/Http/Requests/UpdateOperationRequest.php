@@ -20,6 +20,7 @@ class UpdateOperationRequest extends FormRequest
             'surgeon_id' => ['sometimes', 'integer', 'exists:doctors,id'],
             'procedure_id' => ['sometimes', 'exists:procedures,id'],
             'price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'payment_method_id' => ['nullable', 'exists:payment_methods,id'],
             'scheduled_at' => ['sometimes', 'nullable', 'date'],
         ];
     }

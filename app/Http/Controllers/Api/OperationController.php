@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PayOperationRequest;
 use App\Http\Requests\StoreOperationRequest;
 use App\Http\Requests\StoreOperationSupplyRequest;
 use App\Http\Requests\StoreOperationTeamMemberRequest;
@@ -16,6 +17,8 @@ use App\Services\OperationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class OperationController extends Controller
 {
@@ -38,6 +41,8 @@ class OperationController extends Controller
             'supplies',
             'procedure.category',
             'surgeon',
+            'paymentMethod',
+            'deposits',
         ];
     }
 
@@ -51,7 +56,7 @@ class OperationController extends Controller
     public function index(Admission $admission): JsonResponse
     {
         $operations = $admission->operations()
-            ->with(['teamMembers.doctor', 'teamMembers.role', 'supplies', 'procedure.category', 'surgeon'])
+            ->with(['teamMembers.doctor', 'teamMembers.role', 'supplies', 'procedure.category', 'surgeon', 'paymentMethod', 'deposits'])
             ->latest('scheduled_at')
             ->get();
 
@@ -112,9 +117,62 @@ class OperationController extends Controller
         return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 
+    /**
+     * Marks an operation paid and records the matching deposit in one transaction,
+     * linking the two so cancelPayment() can find and remove the deposit again.
+     */
+    public function pay(PayOperationRequest $request, Operation $operation): JsonResponse
+    {
+        $operation->admission->assertMutable($request->user());
+
+        if ($operation->price === null) {
+            throw ValidationException::withMessages([
+                'price' => ['حدّد سعر العملية أولاً.'],
+            ]);
+        }
+
+        if ($operation->deposits()->exists()) {
+            throw ValidationException::withMessages([
+                'is_paid' => ['هذه العملية مدفوعة بالفعل.'],
+            ]);
+        }
+
+        $paymentMethodId = $request->integer('payment_method_id') ?: null;
+
+        DB::transaction(function () use ($operation, $paymentMethodId, $request) {
+            $operation->admission->deposits()->create([
+                'operation_id' => $operation->id,
+                'amount' => $operation->price,
+                'payment_method_id' => $paymentMethodId,
+                'comment' => 'سداد: '.($operation->procedure?->name_ar ?? 'عملية #'.$operation->id),
+                'paid_by' => $request->user()->id,
+            ]);
+
+            $operation->update(['payment_method_id' => $paymentMethodId]);
+        });
+
+        return response()->json($operation->fresh(['paymentMethod', 'deposits']));
+    }
+
+    /**
+     * Reverts pay(): deletes the deposit(s) it created for this operation and clears the paid flag.
+     */
+    public function cancelPayment(Request $request, Operation $operation): JsonResponse
+    {
+        $operation->admission->assertMutable($request->user());
+
+        DB::transaction(function () use ($operation) {
+            $operation->deposits()->delete();
+            $operation->update(['payment_method_id' => null]);
+        });
+
+        return response()->json($operation->fresh(['paymentMethod', 'deposits']));
+    }
+
     public function addTeamMember(StoreOperationTeamMemberRequest $request, Operation $operation): JsonResponse
     {
         $operation->admission->assertMutable($request->user());
+        $operation->assertEntitlementsEditable($request->user());
 
         $member = $operation->teamMembers()->create([
             ...$request->validated(),
@@ -132,10 +190,49 @@ class OperationController extends Controller
         abort_unless($teamMember->operation_id === $operation->id, Response::HTTP_NOT_FOUND);
 
         $operation->admission->assertMutable($request->user());
+        $operation->assertEntitlementsEditable($request->user());
 
         $teamMember->delete();
 
         return response()->json(null, Response::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * Locks the team's entitlement distribution: roles, doctors, entitlement
+     * amounts and payment methods can no longer be edited until unapproved.
+     */
+    public function approveEntitlements(Request $request, Operation $operation): JsonResponse
+    {
+        $operation->admission->assertMutable($request->user());
+
+        if ($operation->entitlements_approved_at !== null) {
+            throw ValidationException::withMessages([
+                'entitlements_approved_at' => ['تم اعتماد توزيع الاستحقاقات بالفعل.'],
+            ]);
+        }
+
+        $operation->forceFill([
+            'entitlements_approved_at' => now(),
+            'entitlements_approved_by' => $request->user()->id,
+        ])->save();
+
+        return response()->json($this->loadOperation($operation));
+    }
+
+    /**
+     * Reopens the entitlement distribution for editing. Admin-only, mirroring
+     * the admin override in Operation::assertEntitlementsEditable().
+     */
+    public function unapproveEntitlements(Request $request, Operation $operation): JsonResponse
+    {
+        $operation->admission->assertMutable($request->user());
+
+        $operation->forceFill([
+            'entitlements_approved_at' => null,
+            'entitlements_approved_by' => null,
+        ])->save();
+
+        return response()->json($this->loadOperation($operation));
     }
 
     public function addSupply(StoreOperationSupplyRequest $request, Operation $operation): JsonResponse

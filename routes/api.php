@@ -73,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('rooms', RoomController::class)->only(['index', 'show']);
     Route::apiResource('rooms', RoomController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
+    Route::patch('/rooms/{room}/beds-status', [RoomController::class, 'setBedsStatus'])->middleware('role:admin');
 
     Route::apiResource('beds', BedController::class)->only(['index', 'show']);
     Route::apiResource('beds', BedController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
@@ -165,6 +166,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admissions/{admission}/services/accommodation-fee', [RequestedServiceController::class, 'accommodationFee'])->middleware('role:admin,nurse,doctor');
     Route::patch('/admissions/{admission}/services/{requestedService}', [RequestedServiceController::class, 'update'])->middleware('role:admin,nurse,doctor');
     Route::delete('/admissions/{admission}/services/{requestedService}', [RequestedServiceController::class, 'destroy'])->middleware('role:admin,nurse,doctor');
+    Route::post('/admissions/{admission}/services/{requestedService}/pay', [RequestedServiceController::class, 'pay'])->middleware('role:admin,cashier');
+    Route::delete('/admissions/{admission}/services/{requestedService}/pay', [RequestedServiceController::class, 'cancelPayment'])->middleware('role:admin,cashier');
 
     Route::get('/admissions/{admission}/operations', [OperationController::class, 'index']);
     Route::post('/admissions/{admission}/operations', [OperationController::class, 'store'])->middleware('role:admin,doctor');
@@ -175,8 +178,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/operations/{operation}', [OperationController::class, 'show']);
     Route::patch('/operations/{operation}', [OperationController::class, 'update'])->middleware('role:admin,doctor');
     Route::delete('/operations/{operation}', [OperationController::class, 'destroy'])->middleware('role:admin,doctor');
+    Route::post('/operations/{operation}/pay', [OperationController::class, 'pay'])->middleware('role:admin,cashier');
+    Route::delete('/operations/{operation}/pay', [OperationController::class, 'cancelPayment'])->middleware('role:admin,cashier');
     Route::post('/operations/{operation}/team-members', [OperationController::class, 'addTeamMember'])->middleware('role:admin,doctor');
     Route::delete('/operations/{operation}/team-members/{teamMember}', [OperationController::class, 'removeTeamMember'])->middleware('role:admin,doctor');
+    Route::post('/operations/{operation}/approve-entitlements', [OperationController::class, 'approveEntitlements'])->middleware('role:admin,cashier');
+    Route::delete('/operations/{operation}/approve-entitlements', [OperationController::class, 'unapproveEntitlements'])->middleware('role:admin');
     Route::post('/operations/{operation}/supplies', [OperationController::class, 'addSupply'])->middleware('role:admin,doctor,nurse');
     Route::delete('/operations/{operation}/supplies/{supply}', [OperationController::class, 'removeSupply'])->middleware('role:admin,doctor,nurse');
 
@@ -202,11 +209,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/revenue-calculator', [RevenueCalculatorController::class, 'show']);
     Route::get('/reports/revenue-calculator.pdf', [PdfController::class, 'revenueCalculator']);
     Route::get('/reports/daily-revenue', [DailyRevenueReportController::class, 'index'])->middleware('role:admin,cashier');
+    Route::get('/reports/daily-revenue.pdf', [PdfController::class, 'dailyRevenueReport'])->middleware('role:admin,cashier');
     Route::get('/reports/doctor-entitlements', [DoctorEntitlementsReportController::class, 'index'])->middleware('role:admin,cashier');
     Route::get('/reports/doctor-revenue', [DoctorRevenueReportController::class, 'index'])->middleware('role:admin,cashier');
-    Route::get('/reports/payments', [PaymentsReportController::class, 'index'])->middleware('role:admin,cashier');
     Route::get('/reports/payments/recorders', [PaymentsReportController::class, 'recorders'])->middleware('role:admin,cashier');
-    Route::get('/reports/payments.pdf', [PdfController::class, 'paymentsReport'])->middleware('role:admin,cashier');
     Route::get('/reports/expenses', [ExpensesReportController::class, 'index'])->middleware('role:admin,cashier');
     Route::get('/reports/admission-revenue', [AdmissionRevenueReportController::class, 'index'])->middleware('role:admin,cashier');
     Route::get('/reports/admissions-payments.pdf', [PdfController::class, 'admissionsPaymentsReport']);
@@ -215,6 +221,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/statistics/admissions', [StatisticsController::class, 'admissions']);
     Route::get('/statistics/financials', [StatisticsController::class, 'financials']);
     Route::get('/statistics/doctors-services', [StatisticsController::class, 'doctorsAndServices']);
+    Route::get('/statistics/service-revenue', [StatisticsController::class, 'serviceRevenue']);
+    Route::get('/statistics/operation-revenue', [StatisticsController::class, 'operationRevenue']);
     Route::get('/statistics/operations', [StatisticsController::class, 'operations']);
 
     Route::get('/sessions', [SessionController::class, 'index'])->middleware('role:admin');

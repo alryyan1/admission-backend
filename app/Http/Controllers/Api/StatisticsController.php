@@ -128,12 +128,14 @@ class StatisticsController extends Controller
 
         $requestedServicesTotal = (float) (RequestedService::query()
             ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
+            ->whereHas('deposits')
             ->selectRaw('SUM(quantity * unit_price) as total')
             ->value('total') ?? 0);
 
         $roomsTotal = (float) (RequestedService::query()
             ->where('name', RequestedService::AccommodationFeeName)
             ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
+            ->whereHas('deposits')
             ->selectRaw('SUM(quantity * unit_price) as total')
             ->value('total') ?? 0);
 
@@ -142,6 +144,7 @@ class StatisticsController extends Controller
         $operationsTotal = (float) Operation::query()
             ->whereNotNull('price')
             ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
+            ->whereHas('deposits')
             ->sum('price');
 
         return response()->json([
@@ -218,6 +221,57 @@ class StatisticsController extends Controller
             'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'top_doctors' => $topDoctors,
             'top_services' => $topServices,
+        ]);
+    }
+
+    public function serviceRevenue(Request $request): JsonResponse
+    {
+        [$from, $to] = $this->resolveRange($request);
+
+        $services = RequestedService::query()
+            ->where('name', '!=', RequestedService::AccommodationFeeName)
+            ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
+            ->whereHas('deposits')
+            ->selectRaw('name, SUM(quantity) as total_quantity, SUM(quantity * unit_price) as total_revenue')
+            ->groupBy('name')
+            ->orderByDesc('total_revenue')
+            ->get()
+            ->map(fn ($row) => [
+                'name' => $row->name,
+                'total_quantity' => (int) $row->total_quantity,
+                'total_revenue' => (float) $row->total_revenue,
+            ]);
+
+        return response()->json([
+            'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
+            'services' => $services->values(),
+            'total_revenue' => round((float) $services->sum('total_revenue'), 2),
+        ]);
+    }
+
+    public function operationRevenue(Request $request): JsonResponse
+    {
+        [$from, $to] = $this->resolveRange($request);
+
+        $operations = Operation::query()
+            ->join('procedures', 'procedures.id', '=', 'operations.procedure_id')
+            ->whereNotNull('operations.price')
+            ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
+            ->whereHas('deposits')
+            ->selectRaw('procedures.name_ar as name, COUNT(*) as total_quantity, SUM(operations.price) as total_revenue')
+            ->groupBy('procedures.name_ar')
+            ->orderByDesc('total_revenue')
+            ->get()
+            ->map(fn ($row) => [
+                'name' => $row->name,
+                'total_quantity' => (int) $row->total_quantity,
+                'total_revenue' => (float) $row->total_revenue,
+            ]);
+
+        return response()->json([
+            'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
+            'operations' => $operations->values(),
+            'total_revenue' => round((float) $operations->sum('total_revenue'), 2),
         ]);
     }
 

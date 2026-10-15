@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\Operation;
 use App\Models\User;
 use App\Services\AdmissionService;
+use App\Services\DailyRevenueReportService;
 use App\Services\OperationService;
 use App\Services\PdfDocumentService;
 use Illuminate\Http\Request;
@@ -69,14 +70,11 @@ class PdfController extends Controller
         return $this->documents->revenueCalculator($date, $request->user()?->name, $userId, $userName);
     }
 
-    public function paymentsReport(Request $request): Response
+    public function dailyRevenueReport(Request $request, DailyRevenueReportService $report): Response
     {
-        $from = $request->filled('from') ? Carbon::parse($request->query('from')) : now()->subDays(29);
-        $to = $request->filled('to') ? Carbon::parse($request->query('to')) : now();
+        $data = $report->build($request->filled('month') ? $request->string('month')->toString() : null);
 
-        $paidByUserId = $request->filled('paid_by_user_id') ? $request->integer('paid_by_user_id') : null;
-
-        return $this->documents->paymentsReport($from->startOfDay(), $to->endOfDay(), $request->user()?->name, $paidByUserId);
+        return $this->documents->dailyRevenueReport($data);
     }
 
     public function operationsReport(Request $request, OperationService $operations): Response

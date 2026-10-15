@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Admission;
+use App\Models\AdmissionDeposit;
 use App\Models\FacilitySetting;
 use App\Models\Operation;
+use App\Models\PaymentMethod;
 use App\Models\Procedure;
 use App\Models\User;
 use App\Services\InvoiceService;
@@ -257,6 +259,26 @@ class PdfDocumentsTest extends TestCase
 
         $this->assertPdf(
             $this->actingAs($user, 'sanctum')->get('/api/operations/report.pdf?search=no-such-procedure')
+        );
+    }
+
+    public function test_daily_revenue_report_pdf(): void
+    {
+        $user = User::factory()->create();
+        $paymentMethod = PaymentMethod::factory()->create();
+        AdmissionDeposit::factory()->create(['payment_method_id' => $paymentMethod->id, 'amount' => 5000, 'paid_at' => now()]);
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get('/api/reports/daily-revenue.pdf?month='.now()->format('Y-m'))
+        );
+    }
+
+    public function test_daily_revenue_report_pdf_with_no_payment_methods(): void
+    {
+        $user = User::factory()->create();
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get('/api/reports/daily-revenue.pdf?month='.now()->format('Y-m'))
         );
     }
 

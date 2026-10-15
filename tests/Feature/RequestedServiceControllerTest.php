@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Admission;
 use App\Models\Bed;
+use App\Models\PaymentMethod;
+use App\Models\RequestedService;
 use App\Models\Room;
 use App\Models\Service;
 use App\Models\User;
@@ -13,6 +15,86 @@ use Tests\TestCase;
 class RequestedServiceControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_paying_a_service_marks_it_paid_and_creates_a_linked_deposit(): void
+    {
+        $user = User::factory()->role('cashier')->create();
+        $admission = Admission::factory()->create();
+        $service = RequestedService::factory()->create([
+            'admission_id' => $admission->id,
+            'quantity' => 2,
+            'unit_price' => 5000,
+        ]);
+        $paymentMethod = PaymentMethod::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')->postJson(
+            "/api/admissions/{$admission->id}/services/{$service->id}/pay",
+            ['payment_method_id' => $paymentMethod->id],
+        );
+
+        $response->assertOk()
+            ->assertJsonPath('is_paid', true)
+            ->assertJsonPath('payment_method.id', $paymentMethod->id);
+        $this->assertDatabaseHas('requested_services', [
+            'id' => $service->id,
+            'payment_method_id' => $paymentMethod->id,
+        ]);
+        $this->assertDatabaseHas('admission_deposits', [
+            'admission_id' => $admission->id,
+            'requested_service_id' => $service->id,
+            'amount' => 10000,
+            'payment_method_id' => $paymentMethod->id,
+        ]);
+    }
+
+    public function test_paying_an_already_paid_service_is_rejected(): void
+    {
+        $user = User::factory()->role('cashier')->create();
+        $admission = Admission::factory()->create();
+        $service = RequestedService::factory()->create(['admission_id' => $admission->id]);
+        $admission->deposits()->create(['requested_service_id' => $service->id, 'amount' => $service->total_price]);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson(
+            "/api/admissions/{$admission->id}/services/{$service->id}/pay",
+        );
+
+        $response->assertUnprocessable();
+    }
+
+    public function test_cancelling_a_payment_deletes_its_deposit_and_clears_the_paid_flag(): void
+    {
+        $user = User::factory()->role('cashier')->create();
+        $admission = Admission::factory()->create();
+        $service = RequestedService::factory()->create(['admission_id' => $admission->id]);
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson("/api/admissions/{$admission->id}/services/{$service->id}/pay")
+            ->assertOk();
+
+        $response = $this->actingAs($user, 'sanctum')->deleteJson(
+            "/api/admissions/{$admission->id}/services/{$service->id}/pay",
+        );
+
+        $response->assertOk()
+            ->assertJsonPath('is_paid', false)
+            ->assertJsonPath('payment_method_id', null);
+        $this->assertDatabaseHas('requested_services', ['id' => $service->id, 'payment_method_id' => null]);
+        $this->assertDatabaseMissing('admission_deposits', ['requested_service_id' => $service->id]);
+    }
+
+    public function test_updating_a_service_rejects_a_nonexistent_payment_method(): void
+    {
+        $user = User::factory()->create();
+        $admission = Admission::factory()->create();
+        $service = RequestedService::factory()->create(['admission_id' => $admission->id]);
+
+        $response = $this->actingAs($user, 'sanctum')->patchJson(
+            "/api/admissions/{$admission->id}/services/{$service->id}",
+            ['payment_method_id' => 999999],
+        );
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['payment_method_id']);
+    }
 
     public function test_accommodation_fee_creates_a_requested_service_priced_by_nights_and_room_rate(): void
     {

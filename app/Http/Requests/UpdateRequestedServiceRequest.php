@@ -19,6 +19,7 @@ class UpdateRequestedServiceRequest extends FormRequest
         return [
             'quantity' => ['sometimes', 'integer', 'min:1'],
             'unit_price' => ['sometimes', 'numeric', 'min:0'],
+            'payment_method_id' => ['nullable', 'exists:payment_methods,id'],
         ];
     }
 }

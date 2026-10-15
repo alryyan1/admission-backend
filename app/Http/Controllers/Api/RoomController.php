@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SetRoomBedsStatusRequest;
 use App\Http\Requests\StoreRoomRequest;
 use App\Http\Requests\UpdateRoomRequest;
 use App\Models\Room;
@@ -75,5 +76,25 @@ class RoomController extends Controller
         $room->delete();
 
         return response()->noContent();
+    }
+
+    /**
+     * Bulk-sets every bed in the room to "available" or "maintenance" in one request
+     * (e.g. closing a whole room for cleaning). Beds with a currently admitted patient
+     * are left untouched, same as the single-bed update guard.
+     */
+    public function setBedsStatus(SetRoomBedsStatusRequest $request, Room $room): JsonResponse
+    {
+        $updated = $room->beds()
+            ->whereDoesntHave('currentAdmission')
+            ->update(['status' => $request->string('status')]);
+
+        $skipped = $room->beds()->whereHas('currentAdmission')->count();
+
+        return response()->json([
+            'room' => $room->load('beds'),
+            'updated' => $updated,
+            'skipped' => $skipped,
+        ]);
     }
 }
