@@ -269,8 +269,10 @@ class LetterheadPdf extends TCPDF
      *
      * @param  array<int, string>  $cells
      * @param  array<int, float>  $widths
+     * @param  array{0: int, 1: int, 2: int}|null  $fill  Row background colour (e.g. zebra striping).
+     * @param  array<int, array{0: int, 1: int, 2: int}>|null  $cellColors  Per-column text colour overrides, keyed by the cell's index.
      */
-    public function tableRow(array $cells, array $widths, float $size = 9, string $align = 'R'): void
+    public function tableRow(array $cells, array $widths, float $size = 9, string $align = 'R', ?array $fill = null, ?array $cellColors = null): void
     {
         $this->bodyFont($size);
 
@@ -281,11 +283,25 @@ class LetterheadPdf extends TCPDF
         $this->breakIfNeeded($rowHeight);
         $y = $this->GetY();
 
+        if ($fill !== null) {
+            $this->setFillColor($fill[0], $fill[1], $fill[2]);
+        }
+
         $x = $this->rightEdge();
         foreach ($cells as $i => $text) {
             $x -= $widths[$i];
             $this->moveTo($x, $y);
-            $this->MultiCell($widths[$i], $rowHeight, (string) $text, 0, $align, false, 0, null, null, true, 0, false, true, 0, 'M');
+
+            $color = $cellColors[$i] ?? null;
+            if ($color !== null) {
+                $this->setTextColor($color[0], $color[1], $color[2]);
+            }
+
+            $this->MultiCell($widths[$i], $rowHeight, (string) $text, 0, $align, $fill !== null, 0, null, null, true, 0, false, true, 0, 'M');
+
+            if ($color !== null) {
+                $this->resetTextColor();
+            }
         }
 
         $this->drawRowDivider($y + $rowHeight);
@@ -347,8 +363,11 @@ class LetterheadPdf extends TCPDF
 
     /**
      * A bold, shaded amount callout (label right, value left).
+     *
+     * @param  array{0: int, 1: int, 2: int}  $fillColor
+     * @param  array{0: int, 1: int, 2: int}  $textColor
      */
-    public function amountBox(string $label, string $value): void
+    public function amountBox(string $label, string $value, array $fillColor = [243, 244, 246], array $textColor = [31, 41, 55]): void
     {
         $this->bodyFont(13, 'B');
         $rowHeight = max(
@@ -359,11 +378,13 @@ class LetterheadPdf extends TCPDF
         $this->breakIfNeeded(2 + $rowHeight);
         $this->Ln(2);
         $y = $this->GetY();
-        $this->setFillColor(243, 244, 246);
+        $this->setFillColor($fillColor[0], $fillColor[1], $fillColor[2]);
+        $this->setTextColor($textColor[0], $textColor[1], $textColor[2]);
         $this->moveTo($this->rightEdge(), $y);
         $this->Cell($this->contentWidth(), $rowHeight, $value, 0, 0, 'L', true);
         $this->moveTo($this->rightEdge(), $y);
         $this->Cell($this->contentWidth(), $rowHeight, $label, 0, 1, 'R', true);
+        $this->resetTextColor();
     }
 
     /**

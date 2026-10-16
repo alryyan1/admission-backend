@@ -161,7 +161,11 @@ class PdfDocumentService
 
     public function accountStatement(Admission $admission): Response
     {
-        $admission->loadMissing('patient', 'requestedServices', 'deposits.paymentMethod', 'operations.procedure');
+        $admission->loadMissing('patient', 'requestedServices', 'deposits.paymentMethod', 'operations.procedure', 'bed.room.ward.floor');
+
+        $statusLabels = ['admitted' => 'نشطة', 'discharged' => 'مخرّجة', 'cancelled' => 'ملغاة'];
+        $debitColor = [185, 28, 28];
+        $creditColor = [21, 128, 61];
 
         $rows = collect();
 
@@ -194,21 +198,10 @@ class PdfDocumentService
 
         $sorted = $rows->sortBy(fn ($row) => Carbon::parse($row['date'])->timestamp)->values();
 
-        $balance = 0.0;
-        $statementRows = $sorted->map(function ($row) use (&$balance) {
-            $balance += $row['debit'] - $row['credit'];
-
-            return [
-                'date' => $this->date($row['date']),
-                'description' => $row['description'],
-                'debit' => $row['debit'] > 0 ? $this->money($row['debit']) : '—',
-                'credit' => $row['credit'] > 0 ? $this->money($row['credit']) : '—',
-                'balance' => $this->money($balance),
-            ];
-        })->all();
-
-        $totalDebit = round($sorted->sum('debit'), 2);
-        $totalCredit = round($sorted->sum('credit'), 2);
+        $start = Carbon::parse($admission->admission_date);
+        $end = $admission->discharge_date ? Carbon::parse($admission->discharge_date) : now();
+        $stayDays = max(1, $start->diffInDays($end) + 1);
+        $ward = $admission->bed?->room?->ward;
 
         $pdf = $this->renderer->make('كشف الحساب');
 
@@ -216,6 +209,11 @@ class PdfDocumentService
             'المريض: '.($admission->patient?->name ?? '—'),
             'رقم التنويم: #'.$admission->id,
             'تاريخ الإصدار: '.$this->dateTime(now())
+        );
+        $pdf->metaRow(
+            'الغرفة / السرير: '.($admission->bed?->room?->room_number ?? '—').' / '.($admission->bed?->bed_number ?? '—').($ward ? ' — '.$ward->name : ''),
+            'حالة التنويم: '.($statusLabels[$admission->status] ?? $admission->status),
+            'مدة الإقامة: '.$stayDays.' '.($stayDays === 1 ? 'يوم' : 'أيام')
         );
         $pdf->spacing(3);
 
@@ -229,19 +227,62 @@ class PdfDocumentService
             ['label' => 'الرصيد', 'width' => $widths[4]],
         ]);
 
-        if ($statementRows === []) {
+        if ($sorted->isEmpty()) {
             $pdf->tableEmptyRow('لا توجد حركات بعد');
         }
 
-        foreach ($statementRows as $row) {
-            $pdf->tableRow([$row['date'], $row['description'], $row['debit'], $row['credit'], $row['balance']], $widths);
+        $balance = 0.0;
+        $totalDebit = 0.0;
+        $totalCredit = 0.0;
+
+        foreach ($sorted as $index => $row) {
+            $balance += $row['debit'] - $row['credit'];
+            $totalDebit += $row['debit'];
+            $totalCredit += $row['credit'];
+
+            $cellColors = [4 => $balance > 0.004 ? $debitColor : $creditColor];
+            if ($row['debit'] > 0) {
+                $cellColors[2] = $debitColor;
+            }
+            if ($row['credit'] > 0) {
+                $cellColors[3] = $creditColor;
+            }
+
+            $pdf->tableRow(
+                [
+                    $this->date($row['date']),
+                    $row['description'],
+                    $row['debit'] > 0 ? $this->money($row['debit']) : '—',
+                    $row['credit'] > 0 ? $this->money($row['credit']) : '—',
+                    $this->money($balance),
+                ],
+                $widths,
+                9,
+                'R',
+                $index % 2 === 1 ? [249, 250, 251] : null,
+                $cellColors
+            );
         }
+
+        $totalDebit = round($totalDebit, 2);
+        $totalCredit = round($totalCredit, 2);
+        $balanceDue = round($totalDebit - $totalCredit, 2);
 
         $pdf->totalsBlock([
             ['label' => 'إجمالي المدين (الخدمات والعمليات)', 'value' => $this->money($totalDebit)],
             ['label' => 'إجمالي الدائن (الدفعات)', 'value' => $this->money($totalCredit)],
-            ['label' => 'الرصيد المستحق', 'value' => $this->money(round($totalDebit - $totalCredit, 2)), 'bold' => true, 'big' => true],
         ]);
+
+        $pdf->amountBox(
+            $balanceDue > 0 ? 'الرصيد المستحق على المريض' : ($balanceDue < 0 ? 'رصيد دائن للمريض' : 'الحساب مسدد بالكامل'),
+            $this->money(abs($balanceDue)),
+            $balanceDue > 0 ? [254, 242, 242] : [240, 253, 244],
+            $balanceDue > 0 ? $debitColor : $creditColor
+        );
+
+        if ($balanceDue > 0) {
+            $pdf->wordsBlock('المبلغ المستحق كتابة', ArabicNumber::amountToWords($balanceDue));
+        }
 
         return $this->renderer->toResponse($pdf, "account-statement-{$admission->id}.pdf");
     }
