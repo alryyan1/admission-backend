@@ -6,6 +6,7 @@ use App\Models\Admission;
 use App\Models\Bed;
 use App\Models\Doctor;
 use App\Models\InsuranceCompany;
+use App\Models\Operation;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -279,6 +280,72 @@ class AdmissionTest extends TestCase
         $response->assertOk();
         $ids = collect($response->json('data'))->pluck('id')->all();
         $this->assertSame([$matching->id], $ids);
+    }
+
+    public function test_admissions_index_admitted_status_excludes_admissions_without_a_bed(): void
+    {
+        $user = User::factory()->create();
+        $bedded = Admission::factory()->create(['status' => 'admitted']);
+        Admission::factory()->withoutBed()->create(['status' => 'admitted']);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/admissions?status=admitted');
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertSame([$bedded->id], $ids);
+    }
+
+    public function test_admissions_index_unassigned_status_returns_only_admitted_admissions_without_a_bed(): void
+    {
+        $user = User::factory()->create();
+        $unassigned = Admission::factory()->withoutBed()->create(['status' => 'admitted']);
+        Admission::factory()->create(['status' => 'admitted']);
+        Admission::factory()->withoutBed()->create(['status' => 'cancelled']);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/admissions?status=unassigned');
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertSame([$unassigned->id], $ids);
+    }
+
+    public function test_admissions_index_filters_by_balance_due_only(): void
+    {
+        $user = User::factory()->create();
+        $withBalance = Admission::factory()->create();
+        Admission::find($withBalance->id)->requestedServices()->create([
+            'name' => 'أشعة',
+            'quantity' => 1,
+            'unit_price' => 10000,
+        ]);
+        $settled = Admission::factory()->create();
+        Admission::find($settled->id)->requestedServices()->create([
+            'name' => 'أشعة',
+            'quantity' => 1,
+            'unit_price' => 5000,
+        ]);
+        Admission::find($settled->id)->deposits()->create(['amount' => 5000, 'paid_at' => now()]);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/admissions?balance_due_only=1');
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertSame([$withBalance->id], $ids);
+    }
+
+    public function test_admissions_index_filters_by_unapproved_operations_only(): void
+    {
+        $user = User::factory()->create();
+        $unapproved = Admission::factory()->create();
+        Operation::factory()->create(['admission_id' => $unapproved->id, 'entitlements_approved_at' => null]);
+        $approved = Admission::factory()->create();
+        Operation::factory()->create(['admission_id' => $approved->id, 'entitlements_approved_at' => now()]);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/admissions?unapproved_operations_only=1');
+
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertSame([$unapproved->id], $ids);
     }
 
     public function test_admin_can_still_add_vital_signs_to_a_discharged_admission(): void

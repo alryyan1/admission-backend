@@ -76,6 +76,10 @@ class AdmissionController extends Controller
             $admission->balance_due = $charges['balance_due'];
         });
 
+        if ($request->boolean('balance_due_only')) {
+            $admissions = $admissions->filter(fn (Admission $admission): bool => $admission->balance_due > 0)->values();
+        }
+
         return response()->json(['data' => $admissions]);
     }
 

@@ -26,7 +26,21 @@ class AdmissionService
         $query = Admission::query();
 
         if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
+            $status = $request->string('status')->toString();
+
+            if ($status === 'unassigned') {
+                $query->where('status', 'admitted')->whereNull('bed_id');
+            } else {
+                $query->where('status', $status);
+
+                if ($status === 'admitted') {
+                    $query->whereNotNull('bed_id');
+                }
+            }
+        }
+
+        if ($request->boolean('unapproved_operations_only')) {
+            $query->whereHas('operations', fn ($operationsQuery) => $operationsQuery->whereNull('entitlements_approved_at'));
         }
 
         if ($request->filled('patient_id')) {
