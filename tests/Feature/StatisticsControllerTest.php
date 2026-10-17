@@ -93,7 +93,7 @@ class StatisticsControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonPath('paid_total', 15000);
-        $response->assertJsonPath('outstanding_total', 5000);
+        $response->assertJsonPath('outstanding_total', 33000);
         $response->assertJsonPath('deposits_total', 60000);
         $response->assertJsonPath('services_total', 2000);
         $response->assertJsonPath('rooms_total', 15000);

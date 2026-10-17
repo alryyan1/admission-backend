@@ -643,13 +643,15 @@ class PdfDocumentService
     /**
      * @param  Collection<int, Admission>  $admissions
      */
-    public function admissionsPaymentsReport(Collection $admissions, ?string $dateFrom, ?string $dateTo): Response
+    public function admissionsPaymentsReport(Collection $admissions, ?string $dateFrom, ?string $dateTo, ?string $status = null): Response
     {
         $pdf = $this->renderer->make('تقرير بيانات التنويم والمدفوعات', 'L', 'A4');
 
+        $statusLabels = ['admitted' => 'نشطة', 'discharged' => 'مخرّجة', 'cancelled' => 'ملغاة'];
+
         $pdf->metaRow(
-            'من: '.($dateFrom ? $this->date($dateFrom) : '—'),
-            'إلى: '.($dateTo ? $this->date($dateTo) : '—'),
+            'من: '.($dateFrom ? $this->date($dateFrom) : '—').' - إلى: '.($dateTo ? $this->date($dateTo) : '—'),
+            'الحالة: '.($status ? ($statusLabels[$status] ?? $status) : 'الكل'),
             'تاريخ الطباعة: '.$this->dateTime(now())
         );
         $pdf->spacing(3);

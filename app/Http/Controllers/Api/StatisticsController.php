@@ -147,10 +147,22 @@ class StatisticsController extends Controller
             ->whereHas('deposits')
             ->sum('price');
 
+        $requestedServicesOutstanding = (float) (RequestedService::query()
+            ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
+            ->whereDoesntHave('deposits')
+            ->selectRaw('SUM(quantity * unit_price) as total')
+            ->value('total') ?? 0);
+
+        $operationsOutstanding = (float) Operation::query()
+            ->whereNotNull('price')
+            ->whereHas('admission', fn ($query) => $query->whereBetween('admission_date', [$from, $to]))
+            ->whereDoesntHave('deposits')
+            ->sum('price');
+
         return response()->json([
             'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'paid_total' => (float) Invoice::query()->where('status', 'paid')->whereBetween('paid_at', [$from, $to])->sum('total'),
-            'outstanding_total' => (float) Invoice::query()->whereIn('status', ['issued', 'draft'])->sum('total'),
+            'outstanding_total' => round($requestedServicesOutstanding + $operationsOutstanding, 2),
             'deposits_total' => $depositsTotal,
             'entitlements_total' => $entitlementsTotal,
             'expenses_total' => $expensesTotal,

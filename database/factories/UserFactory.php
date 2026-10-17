@@ -40,4 +40,14 @@ class UserFactory extends Factory
             'role' => $role,
         ]);
     }
+
+    /**
+     * @param  array<int, string>  $permissions
+     */
+    public function permissions(array $permissions): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'permissions' => $permissions,
+        ]);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -30,6 +31,8 @@ class UpdateUserRequest extends FormRequest
             'role' => ['sometimes', 'required', 'string', Rule::in(['admin', 'doctor', 'nurse', 'admission_clerk', 'cashier'])],
             'allowed_pages' => ['sometimes', 'nullable', 'array'],
             'allowed_pages.*' => ['string'],
+            'permissions' => ['sometimes', 'nullable', 'array'],
+            'permissions.*' => ['string', Rule::in(User::AVAILABLE_PERMISSIONS)],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

@@ -83,7 +83,7 @@ class AdmissionRoleAuthorizationTest extends TestCase
 
     public function test_cashier_can_record_a_deposit(): void
     {
-        $cashier = User::factory()->role('cashier')->create();
+        $cashier = User::factory()->role('cashier')->permissions([User::PERMISSION_ADD_DIRECT_DEPOSIT])->create();
         $admission = Admission::factory()->create();
 
         $response = $this->actingAs($cashier, 'sanctum')->postJson("/api/admissions/{$admission->id}/deposits", [
@@ -92,6 +92,19 @@ class AdmissionRoleAuthorizationTest extends TestCase
         ]);
 
         $response->assertCreated();
+    }
+
+    public function test_cashier_without_the_direct_deposit_permission_cannot_record_a_deposit(): void
+    {
+        $cashier = User::factory()->role('cashier')->create();
+        $admission = Admission::factory()->create();
+
+        $response = $this->actingAs($cashier, 'sanctum')->postJson("/api/admissions/{$admission->id}/deposits", [
+            'amount' => 50000,
+            'payment_method_id' => PaymentMethod::factory()->create()->id,
+        ]);
+
+        $response->assertForbidden();
     }
 
     public function test_nurse_cannot_remove_a_deposit(): void

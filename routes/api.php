@@ -158,7 +158,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('nursing-assignments', NursingAssignmentController::class)->only(['store', 'destroy'])->middleware('role:admin');
 
     Route::get('/admissions/{admission}/deposits', [AdmissionDepositController::class, 'index']);
-    Route::post('/admissions/{admission}/deposits', [AdmissionDepositController::class, 'store'])->middleware('role:admin,cashier');
+    Route::post('/admissions/{admission}/deposits', [AdmissionDepositController::class, 'store'])->middleware(['role:admin,cashier', 'permission:add_direct_deposit']);
     Route::delete('/admissions/{admission}/deposits/{deposit}', [AdmissionDepositController::class, 'destroy'])->middleware('role:admin,cashier');
 
     Route::get('/admissions/{admission}/services', [RequestedServiceController::class, 'index']);

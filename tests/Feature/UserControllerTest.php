@@ -108,6 +108,39 @@ class UserControllerTest extends TestCase
         $response->assertUnprocessable()->assertJsonValidationErrors(['allowed_pages']);
     }
 
+    public function test_admin_can_grant_the_direct_deposit_permission_to_a_user(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $target = User::factory()->role('cashier')->create();
+
+        $response = $this->actingAs($admin, 'sanctum')->patchJson("/api/users/{$target->id}", [
+            'permissions' => [User::PERMISSION_ADD_DIRECT_DEPOSIT],
+        ]);
+
+        $response->assertOk()->assertJsonPath('permissions', [User::PERMISSION_ADD_DIRECT_DEPOSIT]);
+        $this->assertSame([User::PERMISSION_ADD_DIRECT_DEPOSIT], $target->fresh()->permissions);
+    }
+
+    public function test_users_have_no_permissions_by_default(): void
+    {
+        $user = User::factory()->role('cashier')->create();
+
+        $this->assertNull($user->permissions);
+        $this->assertFalse($user->hasPermission(User::PERMISSION_ADD_DIRECT_DEPOSIT));
+    }
+
+    public function test_an_unknown_permission_is_rejected(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $target = User::factory()->role('cashier')->create();
+
+        $response = $this->actingAs($admin, 'sanctum')->patchJson("/api/users/{$target->id}", [
+            'permissions' => ['not_a_real_permission'],
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['permissions.0']);
+    }
+
     public function test_admin_cannot_deactivate_their_own_account(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

@@ -102,6 +102,7 @@ class PdfController extends Controller
             $list,
             $request->filled('from') ? (string) $request->query('from') : null,
             $request->filled('to') ? (string) $request->query('to') : null,
+            $request->filled('status') ? (string) $request->query('status') : null,
         );
     }
 }
