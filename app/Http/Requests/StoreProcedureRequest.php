@@ -21,6 +21,7 @@ class StoreProcedureRequest extends FormRequest
             'name_ar' => ['required', 'string', 'max:255'],
             'name_en' => ['nullable', 'string', 'max:255'],
             'type' => ['nullable', 'string', 'max:255'],
+            'base_price' => ['nullable', 'numeric', 'min:0'],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['nullable', 'boolean'],
         ];

@@ -21,6 +21,7 @@ class UpdateProcedureRequest extends FormRequest
             'name_ar' => ['sometimes', 'string', 'max:255'],
             'name_en' => ['sometimes', 'nullable', 'string', 'max:255'],
             'type' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'base_price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
         ];

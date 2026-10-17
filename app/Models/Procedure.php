@@ -18,12 +18,14 @@ class Procedure extends Model
         'name_ar',
         'name_en',
         'type',
+        'base_price',
         'description',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'base_price' => 'decimal:2',
     ];
 
     public function category(): BelongsTo

@@ -17,6 +17,7 @@ class ProcedureFactory extends Factory
             'name_ar' => fake()->sentence(3),
             'name_en' => null,
             'type' => null,
+            'base_price' => null,
             'description' => null,
             'is_active' => true,
         ];
