@@ -257,6 +257,17 @@ class AdmissionTest extends TestCase
             ->assertJsonFragment(['insurance_company' => null]);
     }
 
+    public function test_admissions_index_includes_the_registering_user(): void
+    {
+        $user = User::factory()->create();
+        $registeredBy = User::factory()->create(['name' => 'ليلى الأحمد']);
+        Admission::factory()->create(['admitted_by' => $registeredBy->id]);
+
+        $response = $this->actingAs($user, 'sanctum')->getJson('/api/admissions');
+
+        $response->assertOk()->assertJsonFragment(['id' => $registeredBy->id, 'name' => 'ليلى الأحمد']);
+    }
+
     public function test_admissions_index_filters_by_admission_id(): void
     {
         $user = User::factory()->create();

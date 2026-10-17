@@ -28,6 +28,8 @@ class UpdateUserRequest extends FormRequest
             ],
             'password' => ['sometimes', 'nullable', 'string', 'min:6'],
             'role' => ['sometimes', 'required', 'string', Rule::in(['admin', 'doctor', 'nurse', 'admission_clerk', 'cashier'])],
+            'allowed_pages' => ['sometimes', 'nullable', 'array'],
+            'allowed_pages.*' => ['string'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

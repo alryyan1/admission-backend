@@ -51,6 +51,12 @@ class UserController extends Controller
             ]);
         }
 
+        if ($request->user()->is($user) && array_key_exists('allowed_pages', $data)) {
+            throw ValidationException::withMessages([
+                'allowed_pages' => ['لا يمكنك تغيير الصفحات المسموح بها لحسابك الخاص.'],
+            ]);
+        }
+
         $user->update($data);
 
         return response()->json($user);

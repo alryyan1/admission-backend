@@ -22,6 +22,8 @@ class StoreUserRequest extends FormRequest
             'username' => ['required', 'string', 'max:255', 'unique:users,username'],
             'password' => ['required', 'string', 'min:6'],
             'role' => ['required', 'string', Rule::in(['admin', 'doctor', 'nurse', 'admission_clerk', 'cashier'])],
+            'allowed_pages' => ['nullable', 'array'],
+            'allowed_pages.*' => ['string'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

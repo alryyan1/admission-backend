@@ -71,6 +71,43 @@ class UserControllerTest extends TestCase
         $response->assertOk()->assertJsonPath('name', 'جديد');
     }
 
+    public function test_admin_can_restrict_the_pages_a_user_may_see(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $target = User::factory()->create(['role' => 'cashier']);
+
+        $response = $this->actingAs($admin, 'sanctum')->patchJson("/api/users/{$target->id}", [
+            'allowed_pages' => ['/admissions', '/reports/daily-revenue'],
+        ]);
+
+        $response->assertOk()->assertJsonPath('allowed_pages', ['/admissions', '/reports/daily-revenue']);
+        $this->assertSame(['/admissions', '/reports/daily-revenue'], $target->fresh()->allowed_pages);
+    }
+
+    public function test_admin_can_clear_page_restrictions_for_a_user(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $target = User::factory()->create(['allowed_pages' => ['/admissions']]);
+
+        $response = $this->actingAs($admin, 'sanctum')->patchJson("/api/users/{$target->id}", [
+            'allowed_pages' => null,
+        ]);
+
+        $response->assertOk()->assertJsonPath('allowed_pages', null);
+        $this->assertNull($target->fresh()->allowed_pages);
+    }
+
+    public function test_admin_cannot_change_their_own_page_restrictions(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin, 'sanctum')->patchJson("/api/users/{$admin->id}", [
+            'allowed_pages' => ['/admissions'],
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['allowed_pages']);
+    }
+
     public function test_admin_cannot_deactivate_their_own_account(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

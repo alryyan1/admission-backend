@@ -23,6 +23,7 @@ class User extends Authenticatable
         'username',
         'password',
         'role',
+        'allowed_pages',
         'is_active',
     ];
 
@@ -44,12 +45,14 @@ class User extends Authenticatable
     protected $casts = [
         'password' => 'hashed',
         'is_active' => 'boolean',
+        /** Sidebar/route paths this user may access; null means unrestricted (governed by role only). */
+        'allowed_pages' => 'array',
     ];
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'username', 'role', 'is_active'])
+            ->logOnly(['name', 'username', 'role', 'allowed_pages', 'is_active'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

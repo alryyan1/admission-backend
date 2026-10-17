@@ -61,6 +61,7 @@ class AdmissionController extends Controller
         $admissions = $this->admissionService->filteredQuery($request)
             ->with([
                 'patient.insuranceCompany', 'patient.admittingDoctor', 'patient.referredByDoctor', 'bed.room.ward.floor',
+                'admittedBy',
                 'requestedServices.paymentMethod', 'requestedServices.deposits',
                 'operations.procedure', 'operations.paymentMethod', 'operations.deposits', 'deposits',
             ])
