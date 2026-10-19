@@ -179,7 +179,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/operations/{operation}', [OperationController::class, 'update'])->middleware('role:admin,doctor');
     Route::delete('/operations/{operation}', [OperationController::class, 'destroy'])->middleware('role:admin,doctor');
     Route::post('/operations/{operation}/pay', [OperationController::class, 'pay'])->middleware('role:admin,cashier');
-    Route::delete('/operations/{operation}/pay', [OperationController::class, 'cancelPayment'])->middleware('role:admin,cashier');
     Route::post('/operations/{operation}/team-members', [OperationController::class, 'addTeamMember'])->middleware('role:admin,doctor');
     Route::delete('/operations/{operation}/team-members/{teamMember}', [OperationController::class, 'removeTeamMember'])->middleware('role:admin,doctor');
     Route::post('/operations/{operation}/approve-entitlements', [OperationController::class, 'approveEntitlements'])->middleware('role:admin,cashier');

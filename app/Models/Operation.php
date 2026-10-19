@@ -34,7 +34,7 @@ class Operation extends Model
         'entitlements_approved_at' => 'datetime',
     ];
 
-    protected $appends = ['is_paid', 'entitlements_approved'];
+    protected $appends = ['is_paid', 'amount_paid', 'remaining_amount', 'entitlements_approved'];
 
     protected static function booted(): void
     {
@@ -91,14 +91,42 @@ class Operation extends Model
     }
 
     /**
-     * Derived from whether a deposit is linked to this operation, rather than stored
-     * directly, so it can never drift out of sync with the deposit that backs it.
+     * Sum of every deposit linked to this operation, derived rather than stored so it
+     * can never drift out of sync with the deposits that back it.
+     */
+    protected function amountPaid(): Attribute
+    {
+        return Attribute::get(
+            fn () => round((float) ($this->relationLoaded('deposits') ? $this->deposits->sum('amount') : $this->deposits()->sum('amount')), 2)
+        );
+    }
+
+    /**
+     * Outstanding balance on the operation's price, floored at zero.
+     */
+    protected function remainingAmount(): Attribute
+    {
+        return Attribute::get(function () {
+            if ($this->price === null) {
+                return null;
+            }
+
+            return max(round((float) $this->price - $this->amount_paid, 2), 0.0);
+        });
+    }
+
+    /**
+     * Whether the operation's price has been paid in full (as opposed to partially paid).
      */
     protected function isPaid(): Attribute
     {
-        return Attribute::get(
-            fn () => $this->relationLoaded('deposits') ? $this->deposits->isNotEmpty() : $this->deposits()->exists()
-        );
+        return Attribute::get(function () {
+            if ($this->price === null) {
+                return false;
+            }
+
+            return $this->amount_paid >= round((float) $this->price, 2);
+        });
     }
 
     protected function entitlementsApproved(): Attribute

@@ -52,7 +52,8 @@ class AdmissionController extends Controller
             'operations.procedure.category',
             'operations.surgeon',
             'operations.paymentMethod',
-            'operations.deposits',
+            'operations.deposits.paymentMethod',
+            'operations.deposits.paidBy',
         ];
     }
 
@@ -63,7 +64,7 @@ class AdmissionController extends Controller
                 'patient.insuranceCompany', 'patient.admittingDoctor', 'patient.referredByDoctor', 'bed.room.ward.floor',
                 'admittedBy',
                 'requestedServices.paymentMethod', 'requestedServices.deposits',
-                'operations.procedure', 'operations.paymentMethod', 'operations.deposits', 'deposits',
+                'operations.procedure', 'operations.paymentMethod', 'operations.deposits.paymentMethod', 'operations.deposits.paidBy', 'deposits',
             ])
             ->withCount('operations')
             ->latest('admission_date')

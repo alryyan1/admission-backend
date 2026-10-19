@@ -61,6 +61,22 @@ class AdmissionInvoiceTest extends TestCase
         $response->assertJsonFragment(['name' => 'عملية: استئصال الزائدة', 'is_operation' => true]);
     }
 
+    public function test_invoice_balance_due_accounts_for_a_partial_operation_payment(): void
+    {
+        $user = User::factory()->create();
+        $admission = Admission::factory()->create();
+        $operation = Operation::factory()->for($admission)->create(['price' => 50000]);
+        $admission->deposits()->create(['operation_id' => $operation->id, 'amount' => 20000, 'paid_at' => now()]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->getJson("/api/admissions/{$admission->id}/invoice");
+
+        $response->assertOk();
+        $response->assertJsonPath('operations_total', 50000);
+        $response->assertJsonPath('deposits_total', 20000);
+        $response->assertJsonPath('balance_due', 30000);
+    }
+
     public function test_generated_invoice_persists_operation_line_items(): void
     {
         $cashier = User::factory()->role('cashier')->create();

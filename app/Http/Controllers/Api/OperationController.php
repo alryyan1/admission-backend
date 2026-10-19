@@ -42,7 +42,8 @@ class OperationController extends Controller
             'procedure.category',
             'surgeon',
             'paymentMethod',
-            'deposits',
+            'deposits.paymentMethod',
+            'deposits.paidBy',
         ];
     }
 
@@ -56,7 +57,16 @@ class OperationController extends Controller
     public function index(Admission $admission): JsonResponse
     {
         $operations = $admission->operations()
-            ->with(['teamMembers.doctor', 'teamMembers.role', 'supplies', 'procedure.category', 'surgeon', 'paymentMethod', 'deposits'])
+            ->with([
+                'teamMembers.doctor',
+                'teamMembers.role',
+                'supplies',
+                'procedure.category',
+                'surgeon',
+                'paymentMethod',
+                'deposits.paymentMethod',
+                'deposits.paidBy',
+            ])
             ->latest('scheduled_at')
             ->get();
 
@@ -118,8 +128,9 @@ class OperationController extends Controller
     }
 
     /**
-     * Marks an operation paid and records the matching deposit in one transaction,
-     * linking the two so cancelPayment() can find and remove the deposit again.
+     * Records a deposit toward the operation's price, for the given amount — which may
+     * be partial. Individual payments are later removed via AdmissionDepositController::destroy,
+     * not reverted as a whole, so multiple deposits can accumulate per operation.
      */
     public function pay(PayOperationRequest $request, Operation $operation): JsonResponse
     {
@@ -131,42 +142,30 @@ class OperationController extends Controller
             ]);
         }
 
-        if ($operation->deposits()->exists()) {
+        if ($operation->remaining_amount <= 0) {
             throw ValidationException::withMessages([
-                'is_paid' => ['هذه العملية مدفوعة بالفعل.'],
+                'amount' => ['هذه العملية مدفوعة بالكامل.'],
             ]);
         }
 
+        $amount = (float) $request->input('amount');
         $paymentMethodId = $request->integer('payment_method_id') ?: null;
 
-        DB::transaction(function () use ($operation, $paymentMethodId, $request) {
+        DB::transaction(function () use ($operation, $amount, $paymentMethodId, $request) {
             $operation->admission->deposits()->create([
                 'operation_id' => $operation->id,
-                'amount' => $operation->price,
+                'amount' => $amount,
                 'payment_method_id' => $paymentMethodId,
                 'comment' => 'سداد: '.($operation->procedure?->name_ar ?? 'عملية #'.$operation->id),
                 'paid_by' => $request->user()->id,
             ]);
 
+            // Convenience default for the row's payment-method select / next payment dialog;
+            // each deposit records its own payment_method_id as the actual source of truth.
             $operation->update(['payment_method_id' => $paymentMethodId]);
         });
 
-        return response()->json($operation->fresh(['paymentMethod', 'deposits']));
-    }
-
-    /**
-     * Reverts pay(): deletes the deposit(s) it created for this operation and clears the paid flag.
-     */
-    public function cancelPayment(Request $request, Operation $operation): JsonResponse
-    {
-        $operation->admission->assertMutable($request->user());
-
-        DB::transaction(function () use ($operation) {
-            $operation->deposits()->delete();
-            $operation->update(['payment_method_id' => null]);
-        });
-
-        return response()->json($operation->fresh(['paymentMethod', 'deposits']));
+        return response()->json($operation->fresh(['paymentMethod', 'deposits.paymentMethod', 'deposits.paidBy']));
     }
 
     public function addTeamMember(StoreOperationTeamMemberRequest $request, Operation $operation): JsonResponse

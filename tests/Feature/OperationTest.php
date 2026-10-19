@@ -73,11 +73,13 @@ class OperationTest extends TestCase
 
         $response = $this->actingAs($user, 'sanctum')->postJson(
             "/api/operations/{$operation->id}/pay",
-            ['payment_method_id' => $paymentMethod->id],
+            ['amount' => 50000, 'payment_method_id' => $paymentMethod->id],
         );
 
         $response->assertOk()
             ->assertJsonPath('is_paid', true)
+            ->assertJsonPath('amount_paid', 50000)
+            ->assertJsonPath('remaining_amount', 0)
             ->assertJsonPath('payment_method.id', $paymentMethod->id);
         $this->assertDatabaseHas('operations', ['id' => $operation->id, 'payment_method_id' => $paymentMethod->id]);
         $this->assertDatabaseHas('admission_deposits', [
@@ -93,36 +95,87 @@ class OperationTest extends TestCase
         $user = User::factory()->role('cashier')->create();
         $operation = Operation::factory()->create(['price' => null]);
 
-        $response = $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay");
+        $response = $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay", ['amount' => 100]);
 
         $response->assertUnprocessable()->assertJsonValidationErrors(['price']);
     }
 
-    public function test_paying_an_already_paid_operation_is_rejected(): void
+    public function test_paying_a_fully_paid_operation_is_rejected(): void
     {
         $user = User::factory()->role('cashier')->create();
         $operation = Operation::factory()->create(['price' => 50000]);
         $operation->admission->deposits()->create(['operation_id' => $operation->id, 'amount' => 50000]);
 
-        $response = $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay");
+        $response = $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay", ['amount' => 1]);
 
-        $response->assertUnprocessable();
+        $response->assertUnprocessable()->assertJsonValidationErrors(['amount']);
     }
 
-    public function test_cancelling_an_operation_payment_deletes_its_deposit_and_clears_the_paid_flag(): void
+    public function test_paying_a_partial_amount_marks_the_operation_partially_paid(): void
     {
         $user = User::factory()->role('cashier')->create();
         $operation = Operation::factory()->create(['price' => 50000]);
 
-        $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay")->assertOk();
-
-        $response = $this->actingAs($user, 'sanctum')->deleteJson("/api/operations/{$operation->id}/pay");
+        $response = $this->actingAs($user, 'sanctum')->postJson(
+            "/api/operations/{$operation->id}/pay",
+            ['amount' => 20000],
+        );
 
         $response->assertOk()
             ->assertJsonPath('is_paid', false)
-            ->assertJsonPath('payment_method_id', null);
-        $this->assertDatabaseHas('operations', ['id' => $operation->id, 'payment_method_id' => null]);
-        $this->assertDatabaseMissing('admission_deposits', ['operation_id' => $operation->id]);
+            ->assertJsonPath('amount_paid', 20000)
+            ->assertJsonPath('remaining_amount', 30000);
+    }
+
+    public function test_paying_the_remaining_balance_after_a_partial_payment_fully_pays_it(): void
+    {
+        $user = User::factory()->role('cashier')->create();
+        $operation = Operation::factory()->create(['price' => 50000]);
+
+        $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay", ['amount' => 20000])->assertOk();
+        $response = $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay", ['amount' => 30000]);
+
+        $response->assertOk()
+            ->assertJsonPath('is_paid', true)
+            ->assertJsonPath('amount_paid', 50000)
+            ->assertJsonPath('remaining_amount', 0);
+        $this->assertDatabaseCount('admission_deposits', 2);
+    }
+
+    public function test_paying_more_than_the_remaining_balance_is_rejected(): void
+    {
+        $user = User::factory()->role('cashier')->create();
+        $operation = Operation::factory()->create(['price' => 50000]);
+        $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay", ['amount' => 30000])->assertOk();
+
+        $response = $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay", ['amount' => 30000]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['amount']);
+    }
+
+    public function test_deleting_one_partial_payment_only_removes_that_deposit_and_recomputes_balance(): void
+    {
+        $user = User::factory()->role('cashier')->create();
+        $operation = Operation::factory()->create(['price' => 50000]);
+
+        $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay", ['amount' => 20000])->assertOk();
+        $this->actingAs($user, 'sanctum')->postJson("/api/operations/{$operation->id}/pay", ['amount' => 30000])->assertOk();
+
+        $deposits = $operation->deposits()->orderBy('amount')->get();
+        $firstDeposit = $deposits->first();
+        $secondDeposit = $deposits->last();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->deleteJson("/api/admissions/{$operation->admission_id}/deposits/{$firstDeposit->id}");
+
+        $response->assertNoContent();
+        $this->assertDatabaseMissing('admission_deposits', ['id' => $firstDeposit->id]);
+        $this->assertDatabaseHas('admission_deposits', ['id' => $secondDeposit->id]);
+
+        $operation->refresh();
+        $this->assertSame(30000.0, $operation->amount_paid);
+        $this->assertSame(20000.0, $operation->remaining_amount);
+        $this->assertFalse($operation->is_paid);
     }
 
     public function test_validation_requires_surgeon_procedure_and_schedule(): void
