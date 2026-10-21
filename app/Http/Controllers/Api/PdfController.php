@@ -60,6 +60,11 @@ class PdfController extends Controller
         return $this->documents->admissionSummary($admission);
     }
 
+    public function dischargeForm(Admission $admission): Response
+    {
+        return $this->documents->dischargeForm($admission);
+    }
+
     public function revenueCalculator(Request $request): Response
     {
         $date = $request->filled('date') ? Carbon::parse($request->query('date')) : now();

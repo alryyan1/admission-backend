@@ -33,6 +33,7 @@ class DoctorRevenueReportTest extends TestCase
             'patient_id' => $patient->id,
             'bed_id' => $vipBed->id,
             'admission_date' => '2026-10-05 10:00:00',
+            'discharge_date' => '2026-10-08 10:00:00',
         ]);
 
         RequestedService::factory()->create([
@@ -67,6 +68,7 @@ class DoctorRevenueReportTest extends TestCase
             ->assertJsonPath('doctor_role', 'admitting')
             ->assertJsonPath('summary.patients_count', 1)
             ->assertJsonPath('summary.admissions_count', 1)
+            ->assertJsonPath('summary.stay_days_count', 3)
             ->assertJsonPath('summary.room_revenue', 300)
             ->assertJsonPath('summary.services_revenue', 100)
             ->assertJsonPath('summary.operations_revenue', 500)

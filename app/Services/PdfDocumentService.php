@@ -6,9 +6,11 @@ use App\Models\Admission;
 use App\Models\AdmissionDeposit;
 use App\Models\Invoice;
 use App\Models\Operation;
+use App\Models\RoomType;
 use App\Support\ArabicNumber;
 use App\Support\Pdf\Documents\AdmissionFilePdf;
 use App\Support\Pdf\Documents\DepositReceiptPdf;
+use App\Support\Pdf\Documents\DischargeFormPdf;
 use App\Support\Pdf\Documents\OperationInvoicePdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
@@ -285,6 +287,53 @@ class PdfDocumentService
         }
 
         return $this->renderer->toResponse($pdf, "account-statement-{$admission->id}.pdf");
+    }
+
+    public function dischargeForm(Admission $admission): Response
+    {
+        $admission->loadMissing('patient', 'bed.room', 'requestedServices', 'deposits', 'operations');
+
+        $patient = $admission->patient;
+        $room = $admission->bed?->room;
+        $roomTypeName = $room?->room_type
+            ? (RoomType::query()->where('code', $room->room_type)->value('name') ?? $room->room_type)
+            : '—';
+
+        $stayDays = $admission->nightsStayed();
+        $dailyPrice = (float) ($room?->price_per_day ?? 0);
+        $roomTotal = round($stayDays * $dailyPrice, 2);
+
+        $servicesTotal = round((float) $admission->requestedServices->sum('total_price'), 2);
+        $operationsTotal = round((float) $admission->operations->whereNotNull('price')->sum('price'), 2);
+        $depositsTotal = round((float) $admission->deposits->sum('amount'), 2);
+
+        $grandTotal = round($roomTotal + $servicesTotal + $operationsTotal, 2);
+        $remaining = round($grandTotal - $depositsTotal, 2);
+
+        $companion = collect([$patient?->emergency_contact_name, $patient?->emergency_contact_phone])
+            ->filter()
+            ->implode(' — ');
+
+        $pdf = (new DischargeFormPdf)->render(
+            patientName: $patient?->name ?? '—',
+            nationalId: '',
+            phone: $patient?->phone ?? '—',
+            roomBed: ($admission->bed?->room?->room_number ?? '—').' / '.($admission->bed?->bed_number ?? '—'),
+            companion: $companion,
+            fileNumber: '#'.$admission->id,
+            admittedAt: $this->dateTime($admission->admission_date),
+            dischargedAt: $admission->discharge_date ? $this->dateTime($admission->discharge_date) : '—',
+            roomType: $roomTypeName,
+            dailyRoomPrice: $this->money($dailyPrice),
+            stayDays: (string) $stayDays,
+            roomTotal: $this->money($roomTotal),
+            grandTotal: $this->money($grandTotal),
+            paidTotal: $this->money($depositsTotal),
+            remaining: $this->money($remaining),
+            hasBalanceDue: $remaining > 0.004,
+        );
+
+        return $this->renderer->toResponse($pdf, "discharge-form-{$admission->id}.pdf");
     }
 
     public function admissionSummary(Admission $admission): Response

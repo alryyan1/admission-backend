@@ -44,6 +44,7 @@ class DoctorRevenueReportController extends Controller
             'summary' => [
                 'patients_count' => $admissionRows->pluck('patient_id')->unique()->count(),
                 'admissions_count' => $admissionRows->count(),
+                'stay_days_count' => $admissionRows->sum('stay_days'),
                 'room_revenue' => (float) $admissionRows->sum('room_revenue'),
                 'services_revenue' => (float) $admissionRows->sum('services_revenue'),
                 'operations_revenue' => (float) $admissionRows->sum('operations_revenue'),
@@ -56,7 +57,7 @@ class DoctorRevenueReportController extends Controller
 
     /**
      * @param  Collection<int|string, RoomType>  $roomTypesByCode
-     * @return array{admission_id: int, admission_number: string|null, patient_id: int, patient_name: string|null, admission_date: string|null, discharge_date: string|null, status: string, room_type_code: string|null, room_type_name: string|null, room_revenue: float, services_revenue: float, operations_revenue: float, total_revenue: float}
+     * @return array{admission_id: int, admission_number: string|null, patient_id: int, patient_name: string|null, admission_date: string|null, discharge_date: string|null, status: string, room_type_code: string|null, room_type_name: string|null, stay_days: int, room_revenue: float, services_revenue: float, operations_revenue: float, total_revenue: float}
      */
     private function buildAdmissionRow(Admission $admission, Collection $roomTypesByCode): array
     {
@@ -82,6 +83,7 @@ class DoctorRevenueReportController extends Controller
             'status' => $admission->status,
             'room_type_code' => $roomTypeCode,
             'room_type_name' => $roomTypeCode !== null ? ($roomTypesByCode->get($roomTypeCode)?->name ?? $roomTypeCode) : null,
+            'stay_days' => $admission->nightsStayed(),
             'room_revenue' => $roomRevenue,
             'services_revenue' => $servicesRevenue,
             'operations_revenue' => $operationsRevenue,

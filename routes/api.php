@@ -199,6 +199,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admissions/{admission}/invoice.pdf', [PdfController::class, 'admissionInvoice']);
     Route::get('/admissions/{admission}/account-statement.pdf', [PdfController::class, 'accountStatement']);
     Route::get('/admissions/{admission}/summary.pdf', [PdfController::class, 'admissionSummary']);
+    Route::get('/admissions/{admission}/discharge-form.pdf', [PdfController::class, 'dischargeForm']);
     Route::get('/invoices/{invoice}/invoice.pdf', [PdfController::class, 'finalInvoice']);
     Route::get('/operations/{operation}/invoice.pdf', [PdfController::class, 'operationInvoice']);
     Route::post('/operations/{operation}/invoice.pdf/whatsapp', [WhatsAppDocumentController::class, 'operationInvoice']);
