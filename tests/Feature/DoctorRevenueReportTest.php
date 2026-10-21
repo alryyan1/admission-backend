@@ -25,7 +25,7 @@ class DoctorRevenueReportTest extends TestCase
         $otherDoctor = Doctor::factory()->create();
 
         $vipType = RoomType::factory()->create(['code' => 'vip', 'name' => 'جناح VIP']);
-        $vipRoom = Room::factory()->create(['room_type' => $vipType->code, 'price_per_day' => 100]);
+        $vipRoom = Room::factory()->create(['room_type' => $vipType->code, 'price_per_day' => 100, 'room_number' => '101']);
         $vipBed = Bed::factory()->create(['room_id' => $vipRoom->id]);
 
         $patient = Patient::factory()->create(['admitting_doctor_id' => $doctor->id]);
@@ -77,7 +77,8 @@ class DoctorRevenueReportTest extends TestCase
             ->assertJsonPath('room_revenue_by_type.0.room_type_name', 'جناح VIP')
             ->assertJsonPath('room_revenue_by_type.0.total', 300)
             ->assertJsonCount(1, 'admissions')
-            ->assertJsonPath('admissions.0.room_type_name', 'جناح VIP');
+            ->assertJsonPath('admissions.0.room_type_name', 'جناح VIP')
+            ->assertJsonPath('admissions.0.room_number', '101');
     }
 
     public function test_report_filters_by_referring_doctor_when_role_is_referring(): void
