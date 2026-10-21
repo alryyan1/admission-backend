@@ -111,11 +111,60 @@ class DoctorRevenueReportTest extends TestCase
         $doctor = Doctor::factory()->create();
         $patient = Patient::factory()->create(['admitting_doctor_id' => $doctor->id]);
 
-        Admission::factory()->create(['patient_id' => $patient->id, 'admission_date' => '2026-09-30 23:00:00']);
+        // Discharged before the range starts: entirely in the past, no overlap.
+        Admission::factory()->create([
+            'patient_id' => $patient->id,
+            'admission_date' => '2026-09-30 10:00:00',
+            'discharge_date' => '2026-09-30 23:00:00',
+        ]);
+        // Admitted after the range ends.
         Admission::factory()->create(['patient_id' => $patient->id, 'admission_date' => '2026-11-01 00:30:00']);
 
         $response = $this->actingAs($cashier, 'sanctum')->getJson(
             "/api/reports/doctor-revenue?doctor_id={$doctor->id}&doctor_role=admitting&from=2026-10-01&to=2026-10-31"
+        );
+
+        $response->assertOk()->assertJsonPath('summary.admissions_count', 0);
+    }
+
+    public function test_admission_still_inpatient_from_before_the_range_is_included_with_clipped_stay_days(): void
+    {
+        $cashier = User::factory()->create(['role' => 'cashier']);
+        $doctor = Doctor::factory()->create();
+        $patient = Patient::factory()->create(['admitting_doctor_id' => $doctor->id]);
+
+        // Admitted in September, discharged well into October: overlaps the whole selected period.
+        Admission::factory()->create([
+            'patient_id' => $patient->id,
+            'admission_date' => '2026-09-20 10:00:00',
+            'discharge_date' => '2026-10-05 10:00:00',
+        ]);
+
+        $response = $this->actingAs($cashier, 'sanctum')->getJson(
+            "/api/reports/doctor-revenue?doctor_id={$doctor->id}&doctor_role=admitting&from=2026-10-01&to=2026-10-31"
+        );
+
+        $response->assertOk()
+            ->assertJsonPath('summary.admissions_count', 1)
+            // Stay days are clipped to the selected period (Oct 1 00:00 -> Oct 5 10:00 = 5 days), not the full admission.
+            ->assertJsonPath('admissions.0.stay_days', 5);
+    }
+
+    public function test_admission_discharged_on_the_range_start_date_is_excluded(): void
+    {
+        $cashier = User::factory()->create(['role' => 'cashier']);
+        $doctor = Doctor::factory()->create();
+        $patient = Patient::factory()->create(['admitting_doctor_id' => $doctor->id]);
+
+        // Admitted earlier, discharged on the very day the selected period starts: no day remains from that date.
+        Admission::factory()->create([
+            'patient_id' => $patient->id,
+            'admission_date' => '2026-10-10 10:00:00',
+            'discharge_date' => '2026-10-15 09:00:00',
+        ]);
+
+        $response = $this->actingAs($cashier, 'sanctum')->getJson(
+            "/api/reports/doctor-revenue?doctor_id={$doctor->id}&doctor_role=admitting&from=2026-10-15&to=2026-10-31"
         );
 
         $response->assertOk()->assertJsonPath('summary.admissions_count', 0);

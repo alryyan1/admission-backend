@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -153,6 +154,25 @@ class Admission extends Model
     {
         $end = $this->discharge_date ?? now();
         $hours = $this->admission_date->diffInHours($end);
+
+        return max(1, (int) ceil($hours / 24));
+    }
+
+    /**
+     * Billable nights falling within [$from, $to], for reports scoped to a
+     * period rather than the whole admission (e.g. a stay that started
+     * before the period and is still ongoing, or discharged partway through).
+     */
+    public function nightsStayedWithin(Carbon $from, Carbon $to): int
+    {
+        $start = $this->admission_date->max($from);
+        $end = ($this->discharge_date ?? now())->min($to);
+
+        if ($end->lessThan($start)) {
+            return 0;
+        }
+
+        $hours = $start->diffInHours($end);
 
         return max(1, (int) ceil($hours / 24));
     }

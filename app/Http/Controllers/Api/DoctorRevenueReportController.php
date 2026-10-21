@@ -24,14 +24,18 @@ class DoctorRevenueReportController extends Controller
 
         $admissions = Admission::query()
             ->whereHas('patient', fn ($query) => $query->where($column, $doctor->id))
-            ->whereBetween('admission_date', [$from, $to])
+            ->where('admission_date', '<=', $to)
+            ->where(function ($query) use ($from) {
+                $query->whereNull('discharge_date')
+                    ->orWhere('discharge_date', '>=', $from->copy()->addDay());
+            })
             ->with(['patient', 'bed.room', 'requestedServices', 'operations'])
             ->orderByDesc('admission_date')
             ->get();
 
         $roomTypesByCode = RoomType::query()->get()->keyBy('code');
 
-        $admissionRows = $admissions->map(fn (Admission $admission) => $this->buildAdmissionRow($admission, $roomTypesByCode));
+        $admissionRows = $admissions->map(fn (Admission $admission) => $this->buildAdmissionRow($admission, $roomTypesByCode, $from, $to));
 
         return response()->json([
             'doctor' => [
@@ -59,7 +63,7 @@ class DoctorRevenueReportController extends Controller
      * @param  Collection<int|string, RoomType>  $roomTypesByCode
      * @return array{admission_id: int, admission_number: string|null, patient_id: int, patient_name: string|null, admission_date: string|null, discharge_date: string|null, status: string, room_type_code: string|null, room_type_name: string|null, room_number: string|null, stay_days: int, room_revenue: float, services_revenue: float, operations_revenue: float, total_revenue: float}
      */
-    private function buildAdmissionRow(Admission $admission, Collection $roomTypesByCode): array
+    private function buildAdmissionRow(Admission $admission, Collection $roomTypesByCode, Carbon $from, Carbon $to): array
     {
         $roomRevenue = (float) $admission->requestedServices
             ->where('name', RequestedService::AccommodationFeeName)
@@ -84,7 +88,7 @@ class DoctorRevenueReportController extends Controller
             'room_type_code' => $roomTypeCode,
             'room_type_name' => $roomTypeCode !== null ? ($roomTypesByCode->get($roomTypeCode)?->name ?? $roomTypeCode) : null,
             'room_number' => $admission->bed?->room?->room_number,
-            'stay_days' => $admission->nightsStayed(),
+            'stay_days' => $admission->nightsStayedWithin($from, $to),
             'room_revenue' => $roomRevenue,
             'services_revenue' => $servicesRevenue,
             'operations_revenue' => $operationsRevenue,
