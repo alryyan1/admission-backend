@@ -8,6 +8,7 @@ use App\Models\FacilitySetting;
 use App\Models\Operation;
 use App\Models\PaymentMethod;
 use App\Models\Procedure;
+use App\Models\RequestedService;
 use App\Models\User;
 use App\Services\InvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -193,6 +194,31 @@ class PdfDocumentsTest extends TestCase
 
         $this->assertPdf(
             $this->actingAs($user, 'sanctum')->get("/api/admissions/{$admission->id}/summary.pdf")
+        );
+    }
+
+    public function test_discharge_form_pdf(): void
+    {
+        $user = User::factory()->create();
+        $admission = $this->admissionWithActivity();
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get("/api/admissions/{$admission->id}/discharge-form.pdf")
+        );
+    }
+
+    public function test_discharge_form_pdf_with_accommodation_fee_already_billed(): void
+    {
+        $user = User::factory()->create();
+        $admission = $this->admissionWithActivity();
+        $admission->requestedServices()->create([
+            'name' => RequestedService::AccommodationFeeName,
+            'quantity' => $admission->nightsStayed(),
+            'unit_price' => 5000,
+        ]);
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get("/api/admissions/{$admission->id}/discharge-form.pdf")
         );
     }
 

@@ -303,12 +303,10 @@ class PdfDocumentService
         $dailyPrice = (float) ($room?->price_per_day ?? 0);
         $roomTotal = round($stayDays * $dailyPrice, 2);
 
-        $servicesTotal = round((float) $admission->requestedServices->sum('total_price'), 2);
-        $operationsTotal = round((float) $admission->operations->whereNotNull('price')->sum('price'), 2);
-        $depositsTotal = round((float) $admission->deposits->sum('amount'), 2);
-
-        $grandTotal = round($roomTotal + $servicesTotal + $operationsTotal, 2);
-        $remaining = round($grandTotal - $depositsTotal, 2);
+        $charges = $this->invoices->previewCharges($admission);
+        $grandTotal = $charges['total'];
+        $depositsTotal = $charges['deposits_total'];
+        $remaining = $charges['balance_due'];
 
         $companion = collect([$patient?->emergency_contact_name, $patient?->emergency_contact_phone])
             ->filter()
