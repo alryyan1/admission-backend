@@ -88,7 +88,7 @@ class DoctorRevenueReportController extends Controller
             'room_type_code' => $roomTypeCode,
             'room_type_name' => $roomTypeCode !== null ? ($roomTypesByCode->get($roomTypeCode)?->name ?? $roomTypeCode) : null,
             'room_number' => $admission->bed?->room?->room_number,
-            'stay_days' => $admission->nightsStayedWithin($from, $to),
+            'stay_days' => $admission->stayDaysWithin($from, $to),
             'room_revenue' => $roomRevenue,
             'services_revenue' => $servicesRevenue,
             'operations_revenue' => $operationsRevenue,

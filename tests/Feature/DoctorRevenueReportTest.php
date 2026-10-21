@@ -146,8 +146,28 @@ class DoctorRevenueReportTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('summary.admissions_count', 1)
-            // Stay days are clipped to the selected period (Oct 1 00:00 -> Oct 5 10:00 = 5 days), not the full admission.
-            ->assertJsonPath('admissions.0.stay_days', 5);
+            // Clipped to the selected period (from Oct 1), and the discharge day (Oct 5) isn't counted: Oct 1-4 = 4 days.
+            ->assertJsonPath('admissions.0.stay_days', 4);
+    }
+
+    public function test_stay_days_does_not_count_the_discharge_day(): void
+    {
+        $cashier = User::factory()->create(['role' => 'cashier']);
+        $doctor = Doctor::factory()->create();
+        $patient = Patient::factory()->create(['admitting_doctor_id' => $doctor->id]);
+
+        // Admitted Oct 10, discharged Oct 15: only Oct 10-14 (5 days) were actually resided.
+        Admission::factory()->create([
+            'patient_id' => $patient->id,
+            'admission_date' => '2026-10-10 10:00:00',
+            'discharge_date' => '2026-10-15 14:00:00',
+        ]);
+
+        $response = $this->actingAs($cashier, 'sanctum')->getJson(
+            "/api/reports/doctor-revenue?doctor_id={$doctor->id}&doctor_role=admitting&from=2026-10-01&to=2026-10-31"
+        );
+
+        $response->assertOk()->assertJsonPath('admissions.0.stay_days', 5);
     }
 
     public function test_admission_discharged_on_the_range_start_date_is_excluded(): void

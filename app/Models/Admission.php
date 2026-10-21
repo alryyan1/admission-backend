@@ -159,22 +159,27 @@ class Admission extends Model
     }
 
     /**
-     * Billable nights falling within [$from, $to], for reports scoped to a
-     * period rather than the whole admission (e.g. a stay that started
-     * before the period and is still ongoing, or discharged partway through).
+     * Calendar days resided within [$from, $to], for reports scoped to a period
+     * rather than the whole admission (e.g. a stay that started before the
+     * period and is still ongoing, or discharged partway through). Unlike
+     * nightsStayed() (used for billing), the discharge day itself is not
+     * counted — only full days the patient was actually present for.
      */
-    public function nightsStayedWithin(Carbon $from, Carbon $to): int
+    public function stayDaysWithin(Carbon $from, Carbon $to): int
     {
-        $start = $this->admission_date->max($from);
-        $end = ($this->discharge_date ?? now())->min($to);
+        $start = $this->admission_date->max($from)->copy()->startOfDay();
+
+        $dischargedWithinWindow = $this->discharge_date !== null && $this->discharge_date->lessThanOrEqualTo($to);
+
+        $end = $dischargedWithinWindow
+            ? $this->discharge_date->copy()->startOfDay()->subDay()
+            : now()->min($to)->copy()->startOfDay();
 
         if ($end->lessThan($start)) {
             return 0;
         }
 
-        $hours = $start->diffInHours($end);
-
-        return max(1, (int) ceil($hours / 24));
+        return $start->diffInDays($end) + 1;
     }
 
     public function getActivitylogOptions(): LogOptions
