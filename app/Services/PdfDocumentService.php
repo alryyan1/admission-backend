@@ -12,6 +12,7 @@ use App\Support\Pdf\Documents\AdmissionFilePdf;
 use App\Support\Pdf\Documents\DepositReceiptPdf;
 use App\Support\Pdf\Documents\DischargeFormPdf;
 use App\Support\Pdf\Documents\OperationInvoicePdf;
+use App\Support\Pdf\Documents\ShortStayChartPdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -332,6 +333,79 @@ class PdfDocumentService
         );
 
         return $this->renderer->toResponse($pdf, "discharge-form-{$admission->id}.pdf");
+    }
+
+    public function shortStayChart(Admission $admission): Response
+    {
+        $admission->loadMissing(
+            'patient',
+            'shortStayAssessment',
+            'doctorOrders.doses',
+            'vitalSigns',
+            'intakeOutputRecords',
+        );
+
+        $genderLabels = ['male' => 'ذكر', 'female' => 'أنثى'];
+        $patient = $admission->patient;
+        $assessment = $admission->shortStayAssessment;
+
+        $medicationRows = $admission->doctorOrders->flatMap(function ($order) {
+            $times = $order->doses
+                ->sortBy('administered_at')
+                ->map(fn ($dose) => $this->dateTime($dose->administered_at))
+                ->values();
+
+            $chunks = $times->isEmpty() ? collect([collect()]) : $times->chunk(5);
+
+            return $chunks->values()->map(fn ($chunk, $index) => [
+                'name' => $index === 0 ? $order->order_text : '— تابع —',
+                'frequency' => $order->frequency ?? '—',
+                'times' => array_pad($chunk->values()->all(), 5, '—'),
+            ]);
+        })->values()->all();
+
+        $vitalsRows = $admission->vitalSigns->sortBy('recorded_at')->map(fn ($vital) => [
+            'time' => $this->dateTime($vital->recorded_at),
+            'hr' => (string) ($vital->pulse ?? '—'),
+            'spo2' => (string) ($vital->oxygen_saturation ?? '—'),
+            'rr' => (string) ($vital->respiration_rate ?? '—'),
+            'temp' => (string) ($vital->temperature ?? '—'),
+            'bp' => $vital->blood_pressure ?? '—',
+            'mop' => $vital->mop ?? '—',
+            'rbg' => (string) ($vital->rbg ?? '—'),
+        ])->values()->all();
+
+        $ioRows = $admission->intakeOutputRecords->sortBy('recorded_at')->map(fn ($record) => [
+            'time' => $this->dateTime($record->recorded_at),
+            'feeding' => (string) ($record->feeding ?? '—'),
+            'iv_fluid' => (string) ($record->iv_fluid ?? '—'),
+            'maintenance' => (string) ($record->maintenance ?? '—'),
+            'urine_output' => (string) ($record->urine_output ?? '—'),
+            'insensible_losses' => (string) ($record->insensible_losses ?? '—'),
+            'total_intake' => (string) ($record->total_intake ?? '—'),
+            'total_output' => (string) ($record->total_output ?? '—'),
+            'balance' => (string) ($record->balance ?? '—'),
+        ])->values()->all();
+
+        $pdf = (new ShortStayChartPdf)->render(
+            patientName: $patient?->name ?? '—',
+            age: $patient?->age_year !== null ? $patient->age_year.' سنة' : '—',
+            gender: $patient?->gender ? ($genderLabels[$patient->gender] ?? $patient->gender) : '—',
+            address: $patient?->address ?? '—',
+            admittedAt: $this->dateTime($admission->admission_date),
+            initialBp: $assessment?->blood_pressure ?? '—',
+            initialSpo2: $assessment?->oxygen_saturation !== null ? $assessment->oxygen_saturation.'%' : '—',
+            initialPr: $assessment?->pulse !== null ? (string) $assessment->pulse : '—',
+            initialRr: $assessment?->respiration_rate !== null ? (string) $assessment->respiration_rate : '—',
+            pmh: $assessment?->pmh ?? '',
+            chiefComplaint: $assessment?->chief_complaint ?? '',
+            plan: $assessment?->plan ?? '',
+            medicationRows: $medicationRows,
+            vitalsRows: $vitalsRows,
+            ioRows: $ioRows,
+        );
+
+        return $this->renderer->toResponse($pdf, "short-stay-chart-{$admission->id}.pdf");
     }
 
     public function admissionSummary(Admission $admission): Response

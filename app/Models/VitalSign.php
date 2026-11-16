@@ -19,6 +19,8 @@ class VitalSign extends Model
         'respiration_rate',
         'blood_pressure',
         'oxygen_saturation',
+        'mop',
+        'rbg',
         'notes',
     ];
 

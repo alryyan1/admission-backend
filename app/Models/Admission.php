@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
@@ -126,6 +127,16 @@ class Admission extends Model
         return $this->hasMany(DoctorOrder::class);
     }
 
+    public function intakeOutputRecords(): HasMany
+    {
+        return $this->hasMany(IntakeOutputRecord::class);
+    }
+
+    public function shortStayAssessment(): HasOne
+    {
+        return $this->hasOne(ShortStayAssessment::class);
+    }
+
     public function deposits(): HasMany
     {
         return $this->hasMany(AdmissionDeposit::class);
@@ -189,7 +200,7 @@ class Admission extends Model
 
     public function assertMutable(User $user): void
     {
-        if (in_array($this->status, ['discharged', 'cancelled'], true) && $user->role !== 'admin') {
+        if (in_array($this->status, ['discharged', 'cancelled'], true)) {
             throw ValidationException::withMessages([
                 'status' => ['لا يمكن التعديل على تنويم مخرّج أو ملغى بالفعل.'],
             ]);

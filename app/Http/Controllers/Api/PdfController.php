@@ -65,6 +65,11 @@ class PdfController extends Controller
         return $this->documents->dischargeForm($admission);
     }
 
+    public function shortStayChart(Admission $admission): Response
+    {
+        return $this->documents->shortStayChart($admission);
+    }
+
     public function revenueCalculator(Request $request): Response
     {
         $date = $request->filled('date') ? Carbon::parse($request->query('date')) : now();

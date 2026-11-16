@@ -23,6 +23,8 @@ class StoreVitalSignRequest extends FormRequest
             'respiration_rate' => ['nullable', 'integer', 'between:0,120'],
             'blood_pressure' => ['nullable', 'string', 'max:15'],
             'oxygen_saturation' => ['nullable', 'integer', 'between:0,100'],
+            'mop' => ['nullable', 'string', 'max:50'],
+            'rbg' => ['nullable', 'integer', 'between:0,1000'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }

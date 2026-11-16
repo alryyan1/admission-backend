@@ -334,4 +334,34 @@ class PdfDocumentsTest extends TestCase
 
         $this->getJson("/api/admissions/{$admission->id}/summary.pdf")->assertUnauthorized();
     }
+
+    public function test_short_stay_chart_pdf(): void
+    {
+        $user = User::factory()->create();
+        $admission = Admission::factory()->create();
+
+        $admission->shortStayAssessment()->create([
+            'blood_pressure' => '120/80',
+            'oxygen_saturation' => 98,
+            'pulse' => 80,
+            'respiration_rate' => 18,
+            'pmh' => 'لا يوجد',
+            'chief_complaint' => 'حمى وألم بالبطن',
+            'plan' => 'مراقبة وسوائل وريدية',
+        ]);
+        $admission->vitalSigns()->create(['pulse' => 82, 'mop' => 'NC 2L', 'rbg' => 110]);
+        $order = $admission->doctorOrders()->create(['order_text' => 'Paracetamol', 'frequency' => 'q6h']);
+        $order->doses()->create([]);
+        $admission->intakeOutputRecords()->create([
+            'feeding' => 100,
+            'iv_fluid' => 500,
+            'total_intake' => 600,
+            'total_output' => 350,
+            'balance' => 250,
+        ]);
+
+        $this->assertPdf(
+            $this->actingAs($user, 'sanctum')->get("/api/admissions/{$admission->id}/short-stay-chart.pdf")
+        );
+    }
 }

@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\ExpensesReportController;
 use App\Http\Controllers\Api\FacilitySettingController;
 use App\Http\Controllers\Api\FloorController;
 use App\Http\Controllers\Api\InsuranceCompanyController;
+use App\Http\Controllers\Api\IntakeOutputRecordController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\NursingAssignmentController;
 use App\Http\Controllers\Api\OperationController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\Api\RoomTypeController;
 use App\Http\Controllers\Api\ServiceCategoryController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\SessionController;
+use App\Http\Controllers\Api\ShortStayAssessmentController;
 use App\Http\Controllers\Api\SpecialistController;
 use App\Http\Controllers\Api\StatisticsController;
 use App\Http\Controllers\Api\TeamRoleController;
@@ -83,6 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('patients', PatientController::class)->only(['index', 'show']);
     Route::apiResource('patients', PatientController::class)->only(['store'])->middleware('role:admin,admission_clerk');
     Route::patch('/patients/{patient}', [PatientController::class, 'update'])->middleware('role:admin,admission_clerk');
+    Route::post('/patients/{patient}/link-jawda-medical', [PatientController::class, 'linkJawda'])->middleware('role:admin,admission_clerk');
 
     Route::apiResource('doctors', DoctorController::class)->only(['index']);
     Route::apiResource('doctors', DoctorController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
@@ -154,6 +157,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admissions/{admission}/orders', [DoctorOrderController::class, 'store'])->middleware('role:admin,doctor');
     Route::post('/orders/{order}/doses', [TreatmentDoseController::class, 'store'])->middleware('role:admin,nurse');
 
+    Route::get('/admissions/{admission}/intake-output', [IntakeOutputRecordController::class, 'index']);
+    Route::post('/admissions/{admission}/intake-output', [IntakeOutputRecordController::class, 'store'])->middleware('role:admin,nurse');
+
+    Route::get('/admissions/{admission}/short-stay-assessment', [ShortStayAssessmentController::class, 'show']);
+    Route::post('/admissions/{admission}/short-stay-assessment', [ShortStayAssessmentController::class, 'store'])->middleware('role:admin,doctor');
+
     Route::apiResource('nursing-assignments', NursingAssignmentController::class)->only(['index']);
     Route::apiResource('nursing-assignments', NursingAssignmentController::class)->only(['store', 'destroy'])->middleware('role:admin');
 
@@ -200,6 +209,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admissions/{admission}/account-statement.pdf', [PdfController::class, 'accountStatement']);
     Route::get('/admissions/{admission}/summary.pdf', [PdfController::class, 'admissionSummary']);
     Route::get('/admissions/{admission}/discharge-form.pdf', [PdfController::class, 'dischargeForm']);
+    Route::get('/admissions/{admission}/short-stay-chart.pdf', [PdfController::class, 'shortStayChart']);
     Route::get('/invoices/{invoice}/invoice.pdf', [PdfController::class, 'finalInvoice']);
     Route::get('/operations/{operation}/invoice.pdf', [PdfController::class, 'operationInvoice']);
     Route::post('/operations/{operation}/invoice.pdf/whatsapp', [WhatsAppDocumentController::class, 'operationInvoice']);
