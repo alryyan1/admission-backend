@@ -114,7 +114,7 @@ class AdmissionService
         return DB::transaction(function () use ($patient, $user) {
             $hasActiveAdmission = Admission::query()
                 ->where('patient_id', $patient->id)
-                ->where('status', 'admitted')
+                ->where('status', 'admitted') // admitted ده التنويم معناه نشط
                 ->lockForUpdate()
                 ->exists();
 
