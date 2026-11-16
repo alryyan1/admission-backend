@@ -7,6 +7,7 @@ use App\Models\InsuranceCompany;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class PatientControllerTest extends TestCase
@@ -199,5 +200,97 @@ class PatientControllerTest extends TestCase
         ]);
 
         $response->assertUnprocessable()->assertJsonValidationErrors(['admitting_doctor_id', 'referred_by_doctor_id']);
+    }
+
+    public function test_creating_a_patient_links_it_to_a_newly_registered_jawda_medical_patient(): void
+    {
+        Http::fake([
+            '*/public/admission-patients' => Http::response(['data' => ['id' => 777]], 201),
+        ]);
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+        $admittingDoctor = Doctor::factory()->create(['name' => 'د. أحمد الطيب']);
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson('/api/patients', [
+            'name' => 'أحمد',
+            'gender' => 'male',
+            'admitting_doctor_id' => $admittingDoctor->id,
+        ]);
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('patients', [
+            'name' => 'أحمد',
+            'jawda_patient_id' => 777,
+            'is_local_only' => false,
+        ]);
+
+        Http::assertSent(fn ($request) => $request['doctor_name'] === 'د. أحمد الطيب');
+    }
+
+    public function test_creating_a_patient_stays_local_only_when_jawda_medical_registration_fails(): void
+    {
+        Http::fake([
+            '*/public/admission-patients' => Http::response(['message' => 'لا توجد وردية مفتوحة حالياً.'], 400),
+        ]);
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson('/api/patients', [
+            'name' => 'أحمد',
+        ]);
+
+        $response->assertCreated();
+        $this->assertDatabaseHas('patients', [
+            'name' => 'أحمد',
+            'jawda_patient_id' => null,
+            'is_local_only' => true,
+        ]);
+    }
+
+    public function test_admission_clerk_can_retry_linking_a_local_only_patient_to_jawda_medical(): void
+    {
+        Http::fake([
+            '*/public/admission-patients' => Http::response(['data' => ['id' => 999]], 201),
+        ]);
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+        $patient = Patient::factory()->create(['jawda_patient_id' => null, 'is_local_only' => true]);
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson("/api/patients/{$patient->id}/link-jawda-medical");
+
+        $response->assertOk()
+            ->assertJsonPath('jawda_patient_id', 999)
+            ->assertJsonPath('is_local_only', false);
+        $this->assertDatabaseHas('patients', [
+            'id' => $patient->id,
+            'jawda_patient_id' => 999,
+            'is_local_only' => false,
+        ]);
+    }
+
+    public function test_retrying_the_link_reports_an_error_when_jawda_medical_registration_fails(): void
+    {
+        Http::fake([
+            '*/public/admission-patients' => Http::response(['message' => 'لا توجد وردية مفتوحة حالياً.'], 400),
+        ]);
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+        $patient = Patient::factory()->create(['jawda_patient_id' => null, 'is_local_only' => true]);
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson("/api/patients/{$patient->id}/link-jawda-medical");
+
+        $response->assertStatus(502);
+        $this->assertDatabaseHas('patients', [
+            'id' => $patient->id,
+            'jawda_patient_id' => null,
+            'is_local_only' => true,
+        ]);
+    }
+
+    public function test_retrying_the_link_on_an_already_linked_patient_is_a_no_op(): void
+    {
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+        $patient = Patient::factory()->create(['jawda_patient_id' => 123, 'is_local_only' => false]);
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson("/api/patients/{$patient->id}/link-jawda-medical");
+
+        $response->assertOk()->assertJsonPath('jawda_patient_id', 123);
+        Http::assertNothingSent();
     }
 }

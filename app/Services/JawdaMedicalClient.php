@@ -32,4 +32,23 @@ class JawdaMedicalClient
 
         return $response->json('data', []);
     }
+
+    /**
+     * Register a matching patient record in Jawda Medical for a patient
+     * created in the admission system, so the two systems share one
+     * identity (jawda_patient_id). Jawda Medical flags the created record
+     * with from_admission so it can be told apart from a walk-in.
+     *
+     * @param  array<string, mixed>  $patient
+     * @return array<string, mixed>
+     */
+    public function createPatient(array $patient): array
+    {
+        $response = Http::acceptJson()
+            ->timeout(5)
+            ->post("{$this->baseUrl}/public/admission-patients", $patient)
+            ->throw();
+
+        return $response->json('data', []);
+    }
 }

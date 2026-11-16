@@ -29,4 +29,27 @@ class JawdaMedicalClientTest extends TestCase
         });
         Http::assertNotSent(fn ($request) => str_contains($request->url(), '/login'));
     }
+
+    public function test_create_patient_posts_to_the_public_admission_patients_endpoint_without_authentication(): void
+    {
+        Http::fake([
+            '*/public/admission-patients' => Http::response([
+                'data' => ['id' => 55, 'name' => 'Ahmed', 'from_admission' => true],
+            ], 201),
+        ]);
+
+        $client = new JawdaMedicalClient('http://jawda-medical.test/api');
+        $result = $client->createPatient([
+            'name' => 'Ahmed',
+            'gender' => 'male',
+        ]);
+
+        $this->assertSame(['id' => 55, 'name' => 'Ahmed', 'from_admission' => true], $result);
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'http://jawda-medical.test/api/public/admission-patients'
+                && $request->method() === 'POST'
+                && ! $request->hasHeader('Authorization');
+        });
+    }
 }
