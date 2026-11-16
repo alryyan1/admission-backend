@@ -141,12 +141,12 @@ class Operation extends Model
 
     /**
      * Once the team's entitlement distribution is approved, the roster and each
-     * member's role/doctor/entitlement/payment method are locked; only an admin
-     * can bypass this (after explicitly unapproving first).
+     * member's role/doctor/entitlement/payment method are locked; editing
+     * requires explicitly unapproving first (admin-only, see the route).
      */
-    public function assertEntitlementsEditable(User $user): void
+    public function assertEntitlementsEditable(): void
     {
-        if ($this->entitlements_approved_at !== null && $user->role !== 'admin') {
+        if ($this->entitlements_approved_at !== null) {
             throw ValidationException::withMessages([
                 'entitlements_approved_at' => ['تم اعتماد توزيع الاستحقاقات لهذه العملية، ولا يمكن تعديله.'],
             ]);

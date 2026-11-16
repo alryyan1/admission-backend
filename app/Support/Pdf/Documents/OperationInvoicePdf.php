@@ -9,9 +9,9 @@ use App\Support\Pdf\LetterheadPdf;
  * The preliminary invoice for a single operation's price, styled as a
  * formal invoice: a bordered notice strip, a meta line, a ruled
  * single-line item table, and the amount spelled out in words — distinct
- * from the shared multi-line {@see PdfDocumentService::renderInvoice()}
- * used by the admission and final invoices. Draws directly with TCPDF's
- * Cell()/MultiCell()/Rect()/Line() primitives.
+ * from the multi-line invoice built inline in
+ * {@see PdfDocumentService::admissionInvoice()}. Draws directly with
+ * TCPDF's Cell()/MultiCell()/Rect()/Line() primitives.
  */
 class OperationInvoicePdf extends LetterheadPdf
 {

@@ -17,7 +17,7 @@ class DoctorOrderController extends Controller
 
     public function store(StoreDoctorOrderRequest $request, Admission $admission): JsonResponse
     {
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         $order = $admission->doctorOrders()->create([
             ...$request->validated(),

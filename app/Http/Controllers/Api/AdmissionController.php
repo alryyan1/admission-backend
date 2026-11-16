@@ -48,7 +48,6 @@ class AdmissionController extends Controller
             'deposits.paidBy',
             'requestedServices.paymentMethod',
             'requestedServices.deposits',
-            'invoices',
             'operations.teamMembers.doctor',
             'operations.teamMembers.role',
             'operations.supplies',
@@ -185,7 +184,7 @@ class AdmissionController extends Controller
 
     public function update(UpdateAdmissionRequest $request, Admission $admission): JsonResponse
     {
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
         $admission->update($request->validated());
 
         return response()->json($admission->load($this->showRelations()));

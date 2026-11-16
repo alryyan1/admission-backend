@@ -91,7 +91,7 @@ class AccountantControllerTest extends TestCase
         $this->assertDatabaseHas('operation_team_members', ['id' => $member->id, 'entitlement_amount' => 100]);
     }
 
-    public function test_updating_entitlement_is_allowed_by_admin_for_a_discharged_admission(): void
+    public function test_updating_entitlement_is_rejected_for_a_discharged_admission_even_for_admin(): void
     {
         $admin = User::factory()->role('admin')->create();
         $admission = Admission::factory()->create(['status' => 'discharged']);
@@ -101,7 +101,7 @@ class AccountantControllerTest extends TestCase
         $response = $this->actingAs($admin, 'sanctum')
             ->patchJson("/api/accountant/team-members/{$member->id}/entitlement", ['entitlement_amount' => 200]);
 
-        $response->assertOk();
-        $this->assertDatabaseHas('operation_team_members', ['id' => $member->id, 'entitlement_amount' => 200]);
+        $response->assertUnprocessable()->assertJsonValidationErrors(['status']);
+        $this->assertDatabaseHas('operation_team_members', ['id' => $member->id, 'entitlement_amount' => 100]);
     }
 }

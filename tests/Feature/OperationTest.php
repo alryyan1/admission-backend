@@ -278,7 +278,7 @@ class OperationTest extends TestCase
         $this->assertSame([$inRange->id], collect($response->json('data'))->pluck('id')->all());
     }
 
-    public function test_global_listing_includes_price_and_net_totals_across_all_matching_pages(): void
+    public function test_global_listing_includes_price_and_net_totals_across_all_matching_operations(): void
     {
         $user = User::factory()->create();
 
@@ -292,9 +292,10 @@ class OperationTest extends TestCase
         Operation::factory()->create(['price' => '99999.00'])->forceFill(['created_at' => now()->subYear()])->save();
 
         $response = $this->actingAs($user, 'sanctum')
-            ->getJson('/api/operations?per_page=1&date_from='.now()->subDay()->toDateString().'&date_to='.now()->addDay()->toDateString());
+            ->getJson('/api/operations?date_from='.now()->subDay()->toDateString().'&date_to='.now()->addDay()->toDateString());
 
         $response->assertOk();
+        $this->assertCount(2, $response->json('data'));
         $this->assertEquals(15000.0, $response->json('price_total'));
         $this->assertEquals(12000.0, $response->json('net_total'));
     }
@@ -449,7 +450,7 @@ class OperationTest extends TestCase
         $this->assertDatabaseHas('operations', ['id' => $operation->id]);
     }
 
-    public function test_admin_can_delete_an_operation_on_a_cancelled_admission(): void
+    public function test_admin_cannot_delete_an_operation_on_a_cancelled_admission(): void
     {
         $admin = User::factory()->role('admin')->create();
         $operation = Operation::factory()->create([
@@ -458,23 +459,23 @@ class OperationTest extends TestCase
 
         $response = $this->actingAs($admin, 'sanctum')->deleteJson("/api/operations/{$operation->id}");
 
-        $response->assertNoContent();
-        $this->assertDatabaseMissing('operations', ['id' => $operation->id]);
+        $response->assertUnprocessable();
+        $this->assertDatabaseHas('operations', ['id' => $operation->id]);
     }
 
-    public function test_admin_can_update_an_operation_on_a_cancelled_admission(): void
+    public function test_admin_cannot_update_an_operation_on_a_cancelled_admission(): void
     {
         $admin = User::factory()->role('admin')->create();
         $operation = Operation::factory()->create([
             'admission_id' => Admission::factory()->create(['status' => 'cancelled'])->id,
         ]);
-        $newProcedure = Procedure::factory()->create();
+        $originalProcedureId = $operation->procedure_id;
 
         $response = $this->actingAs($admin, 'sanctum')
-            ->patchJson("/api/operations/{$operation->id}", ['procedure_id' => $newProcedure->id]);
+            ->patchJson("/api/operations/{$operation->id}", ['procedure_id' => Procedure::factory()->create()->id]);
 
-        $response->assertOk();
-        $this->assertDatabaseHas('operations', ['id' => $operation->id, 'procedure_id' => $newProcedure->id]);
+        $response->assertUnprocessable();
+        $this->assertDatabaseHas('operations', ['id' => $operation->id, 'procedure_id' => $originalProcedureId]);
     }
 
     public function test_cashier_can_approve_the_entitlement_distribution(): void

@@ -17,7 +17,7 @@ class VitalSignController extends Controller
 
     public function store(StoreVitalSignRequest $request, Admission $admission): JsonResponse
     {
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         $vitalSign = $admission->vitalSigns()->create([
             ...$request->validated(),

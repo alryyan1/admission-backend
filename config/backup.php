@@ -258,7 +258,7 @@ return [
             'name' => env('APP_NAME', 'laravel-backup'),
             'disks' => ['db_backup'],
             'health_checks' => [
-                MaximumAgeInDays::class => 8,
+                MaximumAgeInDays::class => 1,
                 MaximumStorageInMegabytes::class => 5000,
             ],
         ],

@@ -348,7 +348,7 @@ class AdmissionTest extends TestCase
         $this->assertSame([$unapproved->id], $ids);
     }
 
-    public function test_admin_can_still_add_vital_signs_to_a_discharged_admission(): void
+    public function test_admin_cannot_add_vital_signs_to_a_discharged_admission(): void
     {
         $admin = User::factory()->create();
         $patient = Patient::factory()->create();
@@ -369,6 +369,6 @@ class AdmissionTest extends TestCase
                 'pulse' => 80,
             ]);
 
-        $response->assertCreated();
+        $response->assertUnprocessable();
     }
 }

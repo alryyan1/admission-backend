@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Api\AccountantController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AdmissionController;
 use App\Http\Controllers\Api\AdmissionDepositController;
@@ -194,7 +193,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/operations/{operation}/supplies', [OperationController::class, 'addSupply'])->middleware('role:admin,doctor,nurse');
     Route::delete('/operations/{operation}/supplies/{supply}', [OperationController::class, 'removeSupply'])->middleware('role:admin,doctor,nurse');
 
-    Route::patch('/accountant/team-members/{teamMember}/entitlement', [AccountantController::class, 'updateEntitlement'])->middleware('role:admin,cashier');
+    Route::patch('/accountant/team-members/{teamMember}/entitlement', [OperationController::class, 'updateTeamMemberEntitlement'])->middleware('role:admin,cashier');
 
     Route::get('/admissions/{admission}/invoice', [AdmissionInvoiceController::class, 'show']);
 

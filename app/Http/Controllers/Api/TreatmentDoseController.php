@@ -12,7 +12,7 @@ class TreatmentDoseController extends Controller
 {
     public function store(StoreTreatmentDoseRequest $request, DoctorOrder $order): JsonResponse
     {
-        $order->admission->assertMutable($request->user());
+        $order->admission->assertMutable();
 
         $dose = $order->doses()->create([
             ...$request->validated(),

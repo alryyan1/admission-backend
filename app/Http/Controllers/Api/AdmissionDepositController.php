@@ -9,7 +9,6 @@ use App\Models\AdmissionDeposit;
 use App\Models\DepositSetting;
 use App\Services\InvoiceService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Validation\ValidationException;
 
@@ -24,7 +23,7 @@ class AdmissionDepositController extends Controller
 
     public function store(StoreAdmissionDepositRequest $request, Admission $admission): JsonResponse
     {
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         if (DepositSetting::current()->require_balance_for_deposit) {
             $balanceDue = $this->invoiceService->previewCharges($admission)['balance_due'];
@@ -44,11 +43,11 @@ class AdmissionDepositController extends Controller
         return response()->json($deposit->load('paymentMethod'), Response::HTTP_CREATED);
     }
 
-    public function destroy(Request $request, Admission $admission, AdmissionDeposit $deposit): JsonResponse
+    public function destroy(Admission $admission, AdmissionDeposit $deposit): JsonResponse
     {
         abort_unless($deposit->admission_id === $admission->id, Response::HTTP_NOT_FOUND);
 
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         $deposit->delete();
 

@@ -193,7 +193,7 @@ class Admission extends Model
         return LogOptions::defaults()->logFillable()->logOnlyDirty()->dontSubmitEmptyLogs();
     }
 
-    public function assertMutable(User $user): void
+    public function assertMutable(): void
     {
         if (in_array($this->status, ['discharged', 'cancelled'], true)) {
             throw ValidationException::withMessages([

@@ -24,7 +24,7 @@ class ShortStayAssessmentController extends Controller
 
     public function store(StoreShortStayAssessmentRequest $request, Admission $admission): JsonResponse
     {
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         $assessment = $admission->shortStayAssessment()->updateOrCreate(
             [],

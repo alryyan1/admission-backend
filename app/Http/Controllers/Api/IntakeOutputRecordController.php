@@ -17,7 +17,7 @@ class IntakeOutputRecordController extends Controller
 
     public function store(StoreIntakeOutputRecordRequest $request, Admission $admission): JsonResponse
     {
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         $record = $admission->intakeOutputRecords()->create([
             ...$request->validated(),

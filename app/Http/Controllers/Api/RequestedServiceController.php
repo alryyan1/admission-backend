@@ -24,7 +24,7 @@ class RequestedServiceController extends Controller
 
     public function store(StoreRequestedServiceRequest $request, Admission $admission): JsonResponse
     {
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         $service = $admission->requestedServices()->create([
             ...$request->validated(),
@@ -41,7 +41,7 @@ class RequestedServiceController extends Controller
     ): JsonResponse {
         abort_unless($requestedService->admission_id === $admission->id, Response::HTTP_NOT_FOUND);
 
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         $requestedService->update($request->validated());
 
@@ -59,7 +59,7 @@ class RequestedServiceController extends Controller
     ): JsonResponse {
         abort_unless($requestedService->admission_id === $admission->id, Response::HTTP_NOT_FOUND);
 
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         if ($requestedService->deposits()->exists()) {
             throw ValidationException::withMessages([
@@ -87,11 +87,11 @@ class RequestedServiceController extends Controller
     /**
      * Reverts pay(): deletes the deposit(s) it created for this service and clears the paid flag.
      */
-    public function cancelPayment(Request $request, Admission $admission, RequestedService $requestedService): JsonResponse
+    public function cancelPayment(Admission $admission, RequestedService $requestedService): JsonResponse
     {
         abort_unless($requestedService->admission_id === $admission->id, Response::HTTP_NOT_FOUND);
 
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         DB::transaction(function () use ($requestedService) {
             $requestedService->deposits()->delete();
@@ -101,11 +101,11 @@ class RequestedServiceController extends Controller
         return response()->json($requestedService->fresh(['paymentMethod', 'deposits']));
     }
 
-    public function destroy(Request $request, Admission $admission, RequestedService $requestedService): JsonResponse
+    public function destroy(Admission $admission, RequestedService $requestedService): JsonResponse
     {
         abort_unless($requestedService->admission_id === $admission->id, Response::HTTP_NOT_FOUND);
 
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         $requestedService->delete();
 
@@ -114,7 +114,7 @@ class RequestedServiceController extends Controller
 
     public function accommodationFee(Request $request, Admission $admission): JsonResponse
     {
-        $admission->assertMutable($request->user());
+        $admission->assertMutable();
 
         if ($admission->bed === null) {
             throw ValidationException::withMessages([
