@@ -152,11 +152,6 @@ class Admission extends Model
         return $this->hasMany(Operation::class);
     }
 
-    public function invoices(): HasMany
-    {
-        return $this->hasMany(Invoice::class);
-    }
-
     /**
      * Billable nights for room charges: any partial 24-hour block counts as a full
      * night (ceil), with a 1-night minimum even for a same-day discharge.

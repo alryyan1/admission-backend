@@ -5,8 +5,6 @@ namespace App\Console\Commands;
 use App\Models\Admission;
 use App\Models\AdmissionDeposit;
 use App\Models\DoctorOrder;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Models\Operation;
 use App\Models\OperationSupply;
 use App\Models\OperationTeamMember;
@@ -22,7 +20,7 @@ class PurgePatientsAndAdmissions extends Command
 {
     protected $signature = 'patients:purge {--force : Skip the confirmation prompt}';
 
-    protected $description = 'Delete all patients, admissions, and their related rows (invoices, orders, operations, deposits, vitals, requested services)';
+    protected $description = 'Delete all patients, admissions, and their related rows (orders, operations, deposits, vitals, requested services)';
 
     /**
      * Child tables first, so restrictOnDelete foreign keys never block a parent delete.
@@ -30,8 +28,6 @@ class PurgePatientsAndAdmissions extends Command
      * @var array<int, class-string<Model>>
      */
     private const DELETION_ORDER = [
-        InvoiceItem::class,
-        Invoice::class,
         TreatmentDose::class,
         DoctorOrder::class,
         AdmissionDeposit::class,

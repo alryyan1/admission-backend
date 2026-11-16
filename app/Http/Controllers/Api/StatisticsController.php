@@ -8,7 +8,6 @@ use App\Models\AdmissionDeposit;
 use App\Models\Bed;
 use App\Models\Doctor;
 use App\Models\Expense;
-use App\Models\Invoice;
 use App\Models\Operation;
 use App\Models\OperationTeamMember;
 use App\Models\RequestedService;
@@ -102,10 +101,9 @@ class StatisticsController extends Controller
     {
         [$from, $to] = $this->resolveRange($request);
 
-        $dailyRevenue = Invoice::query()
-            ->where('status', 'paid')
+        $dailyRevenue = AdmissionDeposit::query()
             ->whereBetween('paid_at', [$from, $to])
-            ->selectRaw('DATE(paid_at) as date, SUM(total) as total')
+            ->selectRaw('DATE(paid_at) as date, SUM(amount) as total')
             ->groupBy('date')
             ->orderBy('date')
             ->get();
@@ -161,7 +159,6 @@ class StatisticsController extends Controller
 
         return response()->json([
             'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
-            'paid_total' => (float) Invoice::query()->where('status', 'paid')->whereBetween('paid_at', [$from, $to])->sum('total'),
             'outstanding_total' => round($requestedServicesOutstanding + $operationsOutstanding, 2),
             'deposits_total' => $depositsTotal,
             'entitlements_total' => $entitlementsTotal,

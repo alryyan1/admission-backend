@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Admission;
 use App\Models\AdmissionDeposit;
-use App\Models\Invoice;
 use App\Models\Operation;
 use App\Models\RoomType;
 use App\Support\ArabicNumber;
@@ -53,52 +52,43 @@ class PdfDocumentService
         $admission->loadMissing('patient');
         $charges = $this->invoices->previewCharges($admission);
 
-        return $this->renderInvoice(
-            title: 'فاتورة مبدئية',
-            filename: "invoice-preview-{$admission->id}.pdf",
-            isFinal: false,
-            invoiceNumber: null,
-            issuedAt: $this->dateTime(now()),
-            patientName: $admission->patient?->name ?? '—',
-            admissionId: $admission->id,
-            lines: collect($charges['requested_services'])->map(fn ($item) => [
-                'name' => $item['name'],
-                'quantity' => $item['quantity'],
-                'total' => $this->money($item['total_price']),
-            ])->all(),
-            servicesTotal: $this->money($charges['services_total']),
-            operationsTotal: $charges['operations_total'] > 0 ? $this->money($charges['operations_total']) : null,
-            total: $this->money($charges['total']),
-            depositsTotal: $this->money($charges['deposits_total']),
-            balanceDue: $this->money($charges['balance_due']),
-            totalWords: ArabicNumber::amountToWords((float) $charges['total']),
+        $pdf = $this->renderer->make('فاتورة مبدئية');
+        $pdf->warnCenter('مبدئية — غير نهائية، قابلة للتغيير');
+        $pdf->metaRow(
+            'المريض: '.($admission->patient?->name ?? '—'),
+            'رقم التنويم: #'.$admission->id,
+            'التاريخ: '.$this->dateTime(now())
         );
-    }
+        $pdf->spacing(3);
 
-    public function finalInvoice(Invoice $invoice): Response
-    {
-        $invoice->loadMissing('items', 'admission.patient');
+        $nameWidth = $pdf->contentWidth() * 0.7;
+        $totalWidth = $pdf->contentWidth() * 0.3;
+        $pdf->tableHeader([
+            ['label' => 'الخدمة', 'width' => $nameWidth],
+            ['label' => 'الإجمالي', 'width' => $totalWidth],
+        ]);
 
-        return $this->renderInvoice(
-            title: 'فاتورة نهائية',
-            filename: "invoice-{$invoice->invoice_number}.pdf",
-            isFinal: true,
-            invoiceNumber: $invoice->invoice_number,
-            issuedAt: $this->dateTime($invoice->issued_at),
-            patientName: $invoice->admission->patient?->name ?? '—',
-            admissionId: $invoice->admission_id,
-            lines: $invoice->items->map(fn ($item) => [
-                'name' => $item->description,
-                'quantity' => $item->quantity,
-                'total' => $this->money($item->total),
-            ])->all(),
-            servicesTotal: $this->money($invoice->subtotal),
-            operationsTotal: null,
-            total: $this->money($invoice->total),
-            depositsTotal: null,
-            balanceDue: null,
-            totalWords: ArabicNumber::amountToWords((float) $invoice->total),
-        );
+        foreach ($charges['requested_services'] as $item) {
+            $pdf->tableRow(
+                [$item['name'].' × '.$item['quantity'], $this->money($item['total_price'])],
+                [$nameWidth, $totalWidth]
+            );
+        }
+
+        $rows = [
+            ['label' => 'إجمالي الخدمات', 'value' => $this->money($charges['services_total'])],
+        ];
+        if ($charges['operations_total'] > 0) {
+            $rows[] = ['label' => 'إجمالي العمليات', 'value' => $this->money($charges['operations_total'])];
+        }
+        $rows[] = ['label' => 'الإجمالي الكلي', 'value' => $this->money($charges['total'])];
+        $rows[] = ['label' => 'الدفعات المسددة', 'value' => $this->money($charges['deposits_total'])];
+        $rows[] = ['label' => 'المبلغ المتبقي', 'value' => $this->money($charges['balance_due']), 'bold' => true, 'big' => true];
+        $pdf->totalsBlock($rows);
+
+        $pdf->wordsBlock('المبلغ كتابة', ArabicNumber::amountToWords((float) $charges['total']));
+
+        return $this->renderer->toResponse($pdf, "invoice-preview-{$admission->id}.pdf");
     }
 
     public function operationInvoice(Operation $operation): Response
@@ -824,74 +814,6 @@ class PdfDocumentService
         $pdf->signatureRow('توقيع المسؤول', 'ملاحظات');
 
         return $this->renderer->toResponse($pdf, 'admissions-payments-report-'.now()->format('Y-m-d').'.pdf');
-    }
-
-    /**
-     * @param  array<int, array{name: string, quantity: int, total: string}>  $lines
-     */
-    private function renderInvoice(
-        string $title,
-        string $filename,
-        bool $isFinal,
-        ?string $invoiceNumber,
-        string $issuedAt,
-        string $patientName,
-        int $admissionId,
-        array $lines,
-        string $servicesTotal,
-        ?string $operationsTotal,
-        string $total,
-        ?string $depositsTotal,
-        ?string $balanceDue,
-        string $totalWords,
-        string $itemsLabel = 'الخدمة',
-        bool $hideSubtotals = false,
-    ): Response {
-        $pdf = $this->renderer->make($title);
-
-        if (! $isFinal) {
-            $pdf->warnCenter('مبدئية — غير نهائية، قابلة للتغيير');
-        }
-
-        $centerMeta = $isFinal && $invoiceNumber
-            ? 'رقم الفاتورة: '.$invoiceNumber
-            : 'رقم التنويم: #'.$admissionId;
-
-        $pdf->metaRow('المريض: '.$patientName, $centerMeta, 'التاريخ: '.$issuedAt);
-        $pdf->spacing(3);
-
-        $nameWidth = $pdf->contentWidth() * 0.7;
-        $totalWidth = $pdf->contentWidth() * 0.3;
-        $pdf->tableHeader([
-            ['label' => $itemsLabel, 'width' => $nameWidth],
-            ['label' => $hideSubtotals ? 'السعر' : 'الإجمالي', 'width' => $totalWidth],
-        ]);
-
-        foreach ($lines as $line) {
-            $name = $hideSubtotals ? $line['name'] : $line['name'].' × '.$line['quantity'];
-            $pdf->tableRow([$name, $line['total']], [$nameWidth, $totalWidth]);
-        }
-
-        if (! $hideSubtotals) {
-            $rows = [
-                ['label' => 'إجمالي الخدمات', 'value' => $servicesTotal],
-            ];
-            if ($operationsTotal !== null) {
-                $rows[] = ['label' => 'إجمالي العمليات', 'value' => $operationsTotal];
-            }
-            $rows[] = ['label' => 'الإجمالي الكلي', 'value' => $total];
-            if ($depositsTotal !== null) {
-                $rows[] = ['label' => 'الدفعات المسددة', 'value' => $depositsTotal];
-            }
-            if ($balanceDue !== null) {
-                $rows[] = ['label' => 'المبلغ المتبقي', 'value' => $balanceDue, 'bold' => true, 'big' => true];
-            }
-            $pdf->totalsBlock($rows);
-        }
-
-        $pdf->wordsBlock('المبلغ كتابة', $totalWords);
-
-        return $this->renderer->toResponse($pdf, $filename);
     }
 
     private function amount(float|string|null $value): string

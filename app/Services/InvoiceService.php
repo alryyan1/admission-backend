@@ -3,11 +3,7 @@
 namespace App\Services;
 
 use App\Models\Admission;
-use App\Models\Invoice;
-use App\Models\User;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class InvoiceService
 {
@@ -74,49 +70,5 @@ class InvoiceService
             ]);
 
         return $services->concat($operations)->values();
-    }
-
-    public function generate(Admission $admission, User $user): Invoice
-    {
-        $charges = $this->previewCharges($admission);
-
-        return DB::transaction(function () use ($admission, $user, $charges) {
-            $invoice = Invoice::create([
-                'admission_id' => $admission->id,
-                'created_by' => $user->id,
-                'subtotal' => $charges['total'],
-                'discount' => 0,
-                'total' => $charges['total'],
-                'status' => 'issued',
-                'issued_at' => now(),
-            ]);
-
-            foreach ($charges['requested_services'] as $item) {
-                $invoice->items()->create([
-                    'description' => $item['name'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'total' => $item['total_price'],
-                ]);
-            }
-
-            return $invoice;
-        });
-    }
-
-    public function markPaid(Invoice $invoice): Invoice
-    {
-        if ($invoice->status === 'cancelled') {
-            throw ValidationException::withMessages([
-                'status' => ['لا يمكن تحصيل فاتورة ملغاة.'],
-            ]);
-        }
-
-        $invoice->update([
-            'status' => 'paid',
-            'paid_at' => now(),
-        ]);
-
-        return $invoice;
     }
 }

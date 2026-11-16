@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\AdmissionDeposit;
-use App\Models\Invoice;
 use App\Models\Operation;
 use App\Models\User;
 use App\Services\AdmissionService;
@@ -31,11 +30,6 @@ class PdfController extends Controller
     public function admissionInvoice(Admission $admission): Response
     {
         return $this->documents->admissionInvoice($admission);
-    }
-
-    public function finalInvoice(Invoice $invoice): Response
-    {
-        return $this->documents->finalInvoice($invoice);
     }
 
     public function operationInvoice(Operation $operation): Response

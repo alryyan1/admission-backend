@@ -8,8 +8,6 @@ use App\Models\Bed;
 use App\Models\Doctor;
 use App\Models\DoctorOrder;
 use App\Models\InsuranceCompany;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Models\Operation;
 use App\Models\OperationSupply;
 use App\Models\OperationTeamMember;
@@ -27,8 +25,6 @@ class PurgePatientsAndAdmissionsTest extends TestCase
     public function test_force_deletes_patients_admissions_and_related_rows(): void
     {
         $admission = Admission::factory()->create();
-        $invoice = Invoice::factory()->create(['admission_id' => $admission->id]);
-        InvoiceItem::factory()->create(['invoice_id' => $invoice->id]);
         $doctorOrder = DoctorOrder::factory()->create(['admission_id' => $admission->id]);
         TreatmentDose::factory()->create(['doctor_order_id' => $doctorOrder->id]);
         AdmissionDeposit::factory()->create(['admission_id' => $admission->id]);
@@ -44,8 +40,6 @@ class PurgePatientsAndAdmissionsTest extends TestCase
 
         $this->assertDatabaseCount('patients', 0);
         $this->assertDatabaseCount('admissions', 0);
-        $this->assertDatabaseCount('invoices', 0);
-        $this->assertDatabaseCount('invoice_items', 0);
         $this->assertDatabaseCount('doctor_orders', 0);
         $this->assertDatabaseCount('treatment_doses', 0);
         $this->assertDatabaseCount('admission_deposits', 0);

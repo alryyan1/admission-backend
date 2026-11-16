@@ -77,25 +77,6 @@ class AdmissionInvoiceTest extends TestCase
         $response->assertJsonPath('balance_due', 30000);
     }
 
-    public function test_generated_invoice_persists_operation_line_items(): void
-    {
-        $cashier = User::factory()->role('cashier')->create();
-        $admission = Admission::factory()->create();
-        $procedure = Procedure::factory()->create(['name_ar' => 'عملية قلب مفتوح']);
-        Operation::factory()->for($admission)->create(['procedure_id' => $procedure->id, 'price' => 500000]);
-
-        $response = $this->actingAs($cashier, 'sanctum')
-            ->postJson("/api/admissions/{$admission->id}/invoices");
-
-        $response->assertCreated()->assertJsonPath('total', '500000.00');
-        $this->assertDatabaseHas('invoice_items', [
-            'description' => 'عملية: عملية قلب مفتوح',
-            'quantity' => 1,
-            'unit_price' => 500000,
-            'total' => 500000,
-        ]);
-    }
-
     public function test_invoice_ignores_room_pricing(): void
     {
         $user = User::factory()->create();

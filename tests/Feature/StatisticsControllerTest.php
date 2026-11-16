@@ -6,7 +6,6 @@ use App\Models\Admission;
 use App\Models\AdmissionDeposit;
 use App\Models\Bed;
 use App\Models\Doctor;
-use App\Models\Invoice;
 use App\Models\Operation;
 use App\Models\Patient;
 use App\Models\Procedure;
@@ -62,12 +61,10 @@ class StatisticsControllerTest extends TestCase
         $response->assertJsonMissingPath('status_counts.discharged');
     }
 
-    public function test_financials_statistics_sum_paid_invoices_and_deposits(): void
+    public function test_financials_statistics_sum_deposits(): void
     {
         $user = User::factory()->create();
         $admission = Admission::factory()->create();
-        Invoice::factory()->for($admission)->create(['status' => 'paid', 'total' => 15000, 'paid_at' => now()]);
-        Invoice::factory()->for($admission)->create(['status' => 'issued', 'total' => 5000]);
         AdmissionDeposit::factory()->for($admission)->create(['amount' => 3000, 'paid_at' => now()]);
 
         $paidService = RequestedService::factory()->for($admission)->create(['name' => 'تحليل دم', 'quantity' => 2, 'unit_price' => 1000]);
@@ -92,13 +89,13 @@ class StatisticsControllerTest extends TestCase
         $response = $this->actingAs($user, 'sanctum')->getJson('/api/statistics/financials');
 
         $response->assertOk();
-        $response->assertJsonPath('paid_total', 15000);
         $response->assertJsonPath('outstanding_total', 33000);
         $response->assertJsonPath('deposits_total', 60000);
         $response->assertJsonPath('services_total', 2000);
         $response->assertJsonPath('rooms_total', 15000);
         $response->assertJsonPath('operations_total', 40000);
         $response->assertJsonPath('charges_total', 57000);
+        $response->assertJsonPath('daily_revenue.0.total', 60000);
     }
 
     public function test_operations_statistics_report_count_and_revenue_in_range(): void

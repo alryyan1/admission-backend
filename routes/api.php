@@ -23,7 +23,6 @@ use App\Http\Controllers\Api\FacilitySettingController;
 use App\Http\Controllers\Api\FloorController;
 use App\Http\Controllers\Api\InsuranceCompanyController;
 use App\Http\Controllers\Api\IntakeOutputRecordController;
-use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\NursingAssignmentController;
 use App\Http\Controllers\Api\OperationController;
 use App\Http\Controllers\Api\PatientController;
@@ -199,18 +198,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/admissions/{admission}/invoice', [AdmissionInvoiceController::class, 'show']);
 
-    Route::get('/admissions/{admission}/invoices', [InvoiceController::class, 'index']);
-    Route::post('/admissions/{admission}/invoices', [InvoiceController::class, 'store'])->middleware('role:admin,cashier');
-    Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
-    Route::patch('/invoices/{invoice}/pay', [InvoiceController::class, 'markPaid'])->middleware('role:admin,cashier');
-
     Route::get('/admissions/{admission}/deposits/{deposit}/receipt.pdf', [PdfController::class, 'depositReceipt']);
     Route::get('/admissions/{admission}/invoice.pdf', [PdfController::class, 'admissionInvoice']);
     Route::get('/admissions/{admission}/account-statement.pdf', [PdfController::class, 'accountStatement']);
     Route::get('/admissions/{admission}/summary.pdf', [PdfController::class, 'admissionSummary']);
     Route::get('/admissions/{admission}/discharge-form.pdf', [PdfController::class, 'dischargeForm']);
     Route::get('/admissions/{admission}/short-stay-chart.pdf', [PdfController::class, 'shortStayChart']);
-    Route::get('/invoices/{invoice}/invoice.pdf', [PdfController::class, 'finalInvoice']);
     Route::get('/operations/{operation}/invoice.pdf', [PdfController::class, 'operationInvoice']);
     Route::post('/operations/{operation}/invoice.pdf/whatsapp', [WhatsAppDocumentController::class, 'operationInvoice']);
     Route::get('/operations/{operation}/team.pdf', [PdfController::class, 'operationTeam']);

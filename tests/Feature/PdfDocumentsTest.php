@@ -10,7 +10,6 @@ use App\Models\PaymentMethod;
 use App\Models\Procedure;
 use App\Models\RequestedService;
 use App\Models\User;
-use App\Services\InvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
@@ -131,17 +130,6 @@ class PdfDocumentsTest extends TestCase
 
         $this->assertPdf(
             $this->actingAs($user, 'sanctum')->get("/api/admissions/{$admission->id}/invoice.pdf")
-        );
-    }
-
-    public function test_final_invoice_pdf(): void
-    {
-        $user = User::factory()->create();
-        $admission = $this->admissionWithActivity();
-        $invoice = app(InvoiceService::class)->generate($admission, $user);
-
-        $this->assertPdf(
-            $this->actingAs($user, 'sanctum')->get("/api/invoices/{$invoice->id}/invoice.pdf")
         );
     }
 
