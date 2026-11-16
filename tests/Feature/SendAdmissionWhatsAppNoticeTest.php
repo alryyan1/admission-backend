@@ -6,6 +6,7 @@ use App\Jobs\SendAdmissionWhatsAppNotice;
 use App\Models\Admission;
 use App\Models\Bed;
 use App\Models\Doctor;
+use App\Models\FacilitySetting;
 use App\Models\Patient;
 use App\Models\Room;
 use App\Models\User;
@@ -105,6 +106,33 @@ class SendAdmissionWhatsAppNoticeTest extends TestCase
         Http::assertSent(fn ($request) => $request['to'] === '201012345678');
         Http::assertSent(fn ($request) => $request['to'] === '201011111111');
         Http::assertSent(fn ($request) => $request['to'] === '201022222222');
+    }
+
+    public function test_it_does_not_notify_the_referring_doctor_when_disabled_in_settings(): void
+    {
+        config([
+            'services.whatsapp.phone_number_id' => '1234567890',
+            'services.whatsapp.access_token' => 'test-token',
+            'services.whatsapp.admission_template.name' => 'admission_created',
+            'services.whatsapp.admission_template.language' => 'ar',
+            'services.whatsapp.default_country_code' => '20',
+        ]);
+
+        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.test']]], 200)]);
+
+        FacilitySetting::current()->update(['notify_referring_doctor_whatsapp' => false]);
+
+        WhatsAppRecipient::factory()->create(['phone' => '01011111111']);
+
+        $doctor = Doctor::factory()->create(['phone' => '01012345678']);
+        $bed = Bed::factory()->create(['status' => 'available']);
+        $patient = Patient::factory()->create(['referred_by_doctor_id' => $doctor->id]);
+        $admission = Admission::factory()->create(['patient_id' => $patient->id, 'bed_id' => $bed->id]);
+
+        (new SendAdmissionWhatsAppNotice($admission))->handle(app(WhatsAppService::class));
+
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => $request['to'] === '201011111111');
     }
 
     public function test_it_sends_to_recipients_even_when_there_is_no_referring_doctor(): void

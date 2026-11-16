@@ -22,12 +22,14 @@ class FacilitySetting extends Model
         'use_logo',
         'use_stamp',
         'use_watermark',
+        'notify_referring_doctor_whatsapp',
     ];
 
     protected $casts = [
         'use_logo' => 'boolean',
         'use_stamp' => 'boolean',
         'use_watermark' => 'boolean',
+        'notify_referring_doctor_whatsapp' => 'boolean',
     ];
 
     protected $appends = [
@@ -38,7 +40,12 @@ class FacilitySetting extends Model
 
     public static function current(): self
     {
-        return static::query()->firstOrCreate([]);
+        return static::query()->firstOrCreate([], [
+            'use_logo' => true,
+            'use_stamp' => true,
+            'use_watermark' => false,
+            'notify_referring_doctor_whatsapp' => true,
+        ]);
     }
 
     public function getLogoUrlAttribute(): ?string

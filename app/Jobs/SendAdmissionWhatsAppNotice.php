@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Admission;
+use App\Models\FacilitySetting;
 use App\Models\WhatsAppRecipient;
 use App\Services\WhatsAppService;
 use Illuminate\Bus\Queueable;
@@ -36,7 +37,11 @@ class SendAdmissionWhatsAppNotice implements ShouldQueue
             ['type' => 'text', 'text' => $this->admission->admission_date->format('Y-m-d H:i')],
         ];
 
-        $recipients = collect([$this->admission->patient?->referredByDoctor?->phone])
+        $notifyReferringDoctor = FacilitySetting::current()->notify_referring_doctor_whatsapp;
+
+        $recipients = collect([
+            $notifyReferringDoctor ? $this->admission->patient?->referredByDoctor?->phone : null,
+        ])
             ->merge(WhatsAppRecipient::query()->pluck('phone'))
             ->filter()
             ->unique();

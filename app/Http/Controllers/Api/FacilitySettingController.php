@@ -98,6 +98,10 @@ class FacilitySettingController extends Controller
             $setting->use_watermark = $request->boolean('use_watermark');
         }
 
+        if ($request->has('notify_referring_doctor_whatsapp')) {
+            $setting->notify_referring_doctor_whatsapp = $request->boolean('notify_referring_doctor_whatsapp');
+        }
+
         $setting->save();
 
         return response()->json($setting->fresh());
