@@ -5,13 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PayOperationRequest;
 use App\Http\Requests\StoreOperationRequest;
-use App\Http\Requests\StoreOperationSupplyRequest;
 use App\Http\Requests\StoreOperationTeamMemberRequest;
 use App\Http\Requests\UpdateOperationRequest;
 use App\Http\Requests\UpdateTeamMemberEntitlementRequest;
 use App\Models\Admission;
 use App\Models\Operation;
-use App\Models\OperationSupply;
 use App\Models\OperationTeamMember;
 use App\Models\PaymentMethod;
 use App\Services\OperationService;
@@ -39,10 +37,8 @@ class OperationController extends Controller
             'teamMembers.doctor',
             'teamMembers.role',
             'teamMembers.paymentMethod',
-            'supplies',
             'procedure.category',
             'surgeon',
-            'paymentMethod',
             'deposits.paymentMethod',
             'deposits.paidBy',
         ];
@@ -61,10 +57,8 @@ class OperationController extends Controller
             ->with([
                 'teamMembers.doctor',
                 'teamMembers.role',
-                'supplies',
                 'procedure.category',
                 'surgeon',
-                'paymentMethod',
                 'deposits.paymentMethod',
                 'deposits.paidBy',
             ])
@@ -160,13 +154,9 @@ class OperationController extends Controller
                 'comment' => 'سداد: '.($operation->procedure?->name_ar ?? 'عملية #'.$operation->id),
                 'paid_by' => $request->user()->id,
             ]);
-
-            // Convenience default for the row's payment-method select / next payment dialog;
-            // each deposit records its own payment_method_id as the actual source of truth.
-            $operation->update(['payment_method_id' => $paymentMethodId]);
         });
 
-        return response()->json($operation->fresh(['paymentMethod', 'deposits.paymentMethod', 'deposits.paidBy']));
+        return response()->json($operation->fresh(['deposits.paymentMethod', 'deposits.paidBy']));
     }
 
     public function addTeamMember(StoreOperationTeamMemberRequest $request, Operation $operation): JsonResponse
@@ -233,26 +223,6 @@ class OperationController extends Controller
         ])->save();
 
         return response()->json($this->loadOperation($operation));
-    }
-
-    public function addSupply(StoreOperationSupplyRequest $request, Operation $operation): JsonResponse
-    {
-        $operation->admission->assertMutable();
-
-        $supply = $operation->supplies()->create($request->validated());
-
-        return response()->json($supply, Response::HTTP_CREATED);
-    }
-
-    public function removeSupply(Operation $operation, OperationSupply $supply): JsonResponse
-    {
-        abort_unless($supply->operation_id === $operation->id, Response::HTTP_NOT_FOUND);
-
-        $operation->admission->assertMutable();
-
-        $supply->delete();
-
-        return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 
     public function updateTeamMemberEntitlement(UpdateTeamMemberEntitlementRequest $request, OperationTeamMember $teamMember): JsonResponse

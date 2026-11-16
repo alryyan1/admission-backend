@@ -6,7 +6,6 @@ use App\Models\Admission;
 use App\Models\AdmissionDeposit;
 use App\Models\DoctorOrder;
 use App\Models\Operation;
-use App\Models\OperationSupply;
 use App\Models\OperationTeamMember;
 use App\Models\Patient;
 use App\Models\RequestedService;
@@ -33,7 +32,6 @@ class PurgePatientsAndAdmissions extends Command
         AdmissionDeposit::class,
         RequestedService::class,
         VitalSign::class,
-        OperationSupply::class,
         OperationTeamMember::class,
         Operation::class,
         Admission::class,

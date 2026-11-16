@@ -9,7 +9,6 @@ use App\Models\Doctor;
 use App\Models\DoctorOrder;
 use App\Models\InsuranceCompany;
 use App\Models\Operation;
-use App\Models\OperationSupply;
 use App\Models\OperationTeamMember;
 use App\Models\Patient;
 use App\Models\RequestedService;
@@ -31,7 +30,6 @@ class PurgePatientsAndAdmissionsTest extends TestCase
         RequestedService::factory()->create(['admission_id' => $admission->id]);
         VitalSign::factory()->create(['admission_id' => $admission->id]);
         $operation = Operation::factory()->create(['admission_id' => $admission->id]);
-        OperationSupply::factory()->create(['operation_id' => $operation->id]);
         OperationTeamMember::factory()->create(['operation_id' => $operation->id]);
 
         $this->artisan('patients:purge', ['--force' => true])
@@ -46,7 +44,6 @@ class PurgePatientsAndAdmissionsTest extends TestCase
         $this->assertDatabaseCount('requested_services', 0);
         $this->assertDatabaseCount('vital_signs', 0);
         $this->assertDatabaseCount('operations', 0);
-        $this->assertDatabaseCount('operation_supplies', 0);
         $this->assertDatabaseCount('operation_team_members', 0);
     }
 

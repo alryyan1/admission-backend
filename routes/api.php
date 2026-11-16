@@ -190,8 +190,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/operations/{operation}/team-members/{teamMember}', [OperationController::class, 'removeTeamMember'])->middleware('role:admin,doctor');
     Route::post('/operations/{operation}/approve-entitlements', [OperationController::class, 'approveEntitlements'])->middleware('role:admin,cashier');
     Route::delete('/operations/{operation}/approve-entitlements', [OperationController::class, 'unapproveEntitlements'])->middleware('role:admin');
-    Route::post('/operations/{operation}/supplies', [OperationController::class, 'addSupply'])->middleware('role:admin,doctor,nurse');
-    Route::delete('/operations/{operation}/supplies/{supply}', [OperationController::class, 'removeSupply'])->middleware('role:admin,doctor,nurse');
 
     Route::patch('/accountant/team-members/{teamMember}/entitlement', [OperationController::class, 'updateTeamMemberEntitlement'])->middleware('role:admin,cashier');
 

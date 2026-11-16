@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Admission;
 use App\Models\Doctor;
 use App\Models\Operation;
-use App\Models\OperationSupply;
 use App\Models\OperationTeamMember;
 use App\Models\PaymentMethod;
 use App\Models\Procedure;
@@ -79,9 +78,7 @@ class OperationTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('is_paid', true)
             ->assertJsonPath('amount_paid', 50000)
-            ->assertJsonPath('remaining_amount', 0)
-            ->assertJsonPath('payment_method.id', $paymentMethod->id);
-        $this->assertDatabaseHas('operations', ['id' => $operation->id, 'payment_method_id' => $paymentMethod->id]);
+            ->assertJsonPath('remaining_amount', 0);
         $this->assertDatabaseHas('admission_deposits', [
             'admission_id' => $operation->admission_id,
             'operation_id' => $operation->id,
@@ -381,26 +378,6 @@ class OperationTest extends TestCase
         $this->assertDatabaseHas('operation_team_members', ['id' => $teamMember->id]);
     }
 
-    public function test_nurse_cannot_add_or_remove_supplies_on_a_cancelled_admission(): void
-    {
-        $nurse = User::factory()->role('nurse')->create();
-        $operation = Operation::factory()->create([
-            'admission_id' => Admission::factory()->create(['status' => 'cancelled'])->id,
-        ]);
-        $supply = OperationSupply::factory()->create(['operation_id' => $operation->id]);
-
-        $this->actingAs($nurse, 'sanctum')
-            ->postJson("/api/operations/{$operation->id}/supplies", ['name' => 'Gauze'])
-            ->assertUnprocessable();
-
-        $this->actingAs($nurse, 'sanctum')
-            ->deleteJson("/api/operations/{$operation->id}/supplies/{$supply->id}")
-            ->assertUnprocessable();
-
-        $this->assertDatabaseCount('operation_supplies', 1);
-        $this->assertDatabaseHas('operation_supplies', ['id' => $supply->id]);
-    }
-
     public function test_doctor_can_delete_an_operation(): void
     {
         $doctor = User::factory()->role('doctor')->create();
@@ -412,18 +389,16 @@ class OperationTest extends TestCase
         $this->assertDatabaseMissing('operations', ['id' => $operation->id]);
     }
 
-    public function test_deleting_an_operation_removes_its_team_members_and_supplies(): void
+    public function test_deleting_an_operation_removes_its_team_members(): void
     {
         $doctor = User::factory()->role('doctor')->create();
         $operation = Operation::factory()->create();
         $teamMember = OperationTeamMember::factory()->create(['operation_id' => $operation->id]);
-        $supply = OperationSupply::factory()->create(['operation_id' => $operation->id]);
 
         $response = $this->actingAs($doctor, 'sanctum')->deleteJson("/api/operations/{$operation->id}");
 
         $response->assertNoContent();
         $this->assertDatabaseMissing('operation_team_members', ['id' => $teamMember->id]);
-        $this->assertDatabaseMissing('operation_supplies', ['id' => $supply->id]);
     }
 
     public function test_nurse_cannot_delete_an_operation(): void

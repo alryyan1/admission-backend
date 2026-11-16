@@ -21,7 +21,6 @@ class Operation extends Model
         'operation_number',
         'procedure_id',
         'price',
-        'payment_method_id',
         'scheduled_at',
         'created_by',
         'entitlements_approved_at',
@@ -68,16 +67,6 @@ class Operation extends Model
     public function teamMembers(): HasMany
     {
         return $this->hasMany(OperationTeamMember::class);
-    }
-
-    public function supplies(): HasMany
-    {
-        return $this->hasMany(OperationSupply::class);
-    }
-
-    public function paymentMethod(): BelongsTo
-    {
-        return $this->belongsTo(PaymentMethod::class);
     }
 
     public function entitlementsApprovedBy(): BelongsTo

@@ -34,7 +34,6 @@ class OperationService
     public function delete(Operation $operation): void
     {
         $operation->teamMembers()->delete();
-        $operation->supplies()->delete();
         $operation->delete();
     }
 

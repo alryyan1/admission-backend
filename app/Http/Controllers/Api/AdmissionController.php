@@ -50,10 +50,8 @@ class AdmissionController extends Controller
             'requestedServices.deposits',
             'operations.teamMembers.doctor',
             'operations.teamMembers.role',
-            'operations.supplies',
             'operations.procedure.category',
             'operations.surgeon',
-            'operations.paymentMethod',
             'operations.deposits.paymentMethod',
             'operations.deposits.paidBy',
         ];
@@ -66,7 +64,7 @@ class AdmissionController extends Controller
                 'patient.insuranceCompany', 'patient.admittingDoctor', 'patient.referredByDoctor', 'bed.room.ward.floor',
                 'admittedBy',
                 'requestedServices.paymentMethod', 'requestedServices.deposits',
-                'operations.procedure', 'operations.paymentMethod', 'operations.deposits.paymentMethod', 'operations.deposits.paidBy', 'deposits',
+                'operations.procedure', 'operations.deposits.paymentMethod', 'operations.deposits.paidBy', 'deposits',
             ])
             ->withCount('operations')
             ->latest('admission_date')
