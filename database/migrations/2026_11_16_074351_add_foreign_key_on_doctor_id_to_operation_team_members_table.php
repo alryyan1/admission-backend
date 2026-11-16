@@ -12,7 +12,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement('ALTER TABLE operation_team_members MODIFY doctor_id BIGINT UNSIGNED NULL');
+        // MySQL requires doctor_id to match doctors.id's BIGINT UNSIGNED type before
+        // it can be used in a foreign key; other drivers (e.g. sqlite in tests) don't
+        // enforce column types this strictly, so the raw ALTER is MySQL-only.
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE operation_team_members MODIFY doctor_id BIGINT UNSIGNED NULL');
+        }
 
         Schema::table('operation_team_members', function (Blueprint $table) {
             $table->foreign('doctor_id')->references('id')->on('doctors')->nullOnDelete();
@@ -28,6 +33,8 @@ return new class extends Migration
             $table->dropForeign(['doctor_id']);
         });
 
-        DB::statement('ALTER TABLE operation_team_members MODIFY doctor_id INT UNSIGNED NULL');
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE operation_team_members MODIFY doctor_id INT UNSIGNED NULL');
+        }
     }
 };
