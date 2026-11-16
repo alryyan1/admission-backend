@@ -44,6 +44,12 @@ return [
             'throw' => false,
         ],
 
+        'db_backup' => [
+            'driver' => 'local',
+            'root' => env('BACKUP_DISK_PATH', storage_path('app/backups')),
+            'throw' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

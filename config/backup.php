@@ -23,21 +23,11 @@ return [
         'source' => [
             'files' => [
                 /*
-                 * The list of directories and files that will be included in the backup.
+                 * Database-only backup — no files included.
                  */
-                'include' => [
-                    base_path(),
-                ],
+                'include' => [],
 
-                /*
-                 * These directories and files will be excluded from the backup.
-                 *
-                 * Directories used by the backup process will automatically be excluded.
-                 */
-                'exclude' => [
-                    base_path('vendor'),
-                    base_path('node_modules'),
-                ],
+                'exclude' => [],
 
                 /*
                  * Determines if symlinks should be followed.
@@ -103,7 +93,7 @@ return [
          *
          * If you do not want any compressor at all, set it to null.
          */
-        'database_dump_compressor' => null,
+        'database_dump_compressor' => null, // gzip not available on Windows; ZIP archive handles compression
 
         /*
          * If specified, the database dumped file name will contain a timestamp (e.g.: 'Y-m-d-H-i-s').
@@ -162,7 +152,7 @@ return [
              * The disk names on which the backups will be stored.
              */
             'disks' => [
-                'local',
+                'db_backup',
             ],
         ],
 
@@ -266,9 +256,9 @@ return [
     'monitor_backups' => [
         [
             'name' => env('APP_NAME', 'laravel-backup'),
-            'disks' => ['local'],
+            'disks' => ['db_backup'],
             'health_checks' => [
-                MaximumAgeInDays::class => 1,
+                MaximumAgeInDays::class => 8,
                 MaximumStorageInMegabytes::class => 5000,
             ],
         ],
