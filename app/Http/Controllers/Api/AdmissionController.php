@@ -178,6 +178,22 @@ class AdmissionController extends Controller
         return response()->json($admission->load($this->showRelations()));
     }
 
+    /**
+     * Public, unauthenticated lookup used by Jawda Medical to find this
+     * admission's companion/emergency contact when it needs to send a
+     * WhatsApp notice (e.g. after a dose is recorded as given).
+     */
+    public function companionContact(Admission $admission): JsonResponse
+    {
+        $patient = $admission->patient;
+
+        return response()->json([
+            'name' => $patient?->emergency_contact_name,
+            'relationship' => $patient?->emergency_contact_relationship,
+            'phone' => $patient?->emergency_contact_phone,
+        ]);
+    }
+
     public function update(UpdateAdmissionRequest $request, Admission $admission): JsonResponse
     {
         $admission->assertMutable();

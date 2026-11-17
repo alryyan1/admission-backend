@@ -42,6 +42,7 @@ class AdmissionDoctorWhatsAppNoticeTest extends TestCase
             'name' => 'علي أحمد',
             'referred_by_doctor_id' => $doctor->id,
             'admitting_doctor_id' => $admittingDoctor->id,
+            'jawda_patient_id' => 999,
         ]);
 
         $response = $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [
@@ -75,7 +76,7 @@ class AdmissionDoctorWhatsAppNoticeTest extends TestCase
 
         $user = User::factory()->create();
         $bed = Bed::factory()->create(['status' => 'available']);
-        $patient = Patient::factory()->create(['referred_by_doctor_id' => null]);
+        $patient = Patient::factory()->create(['referred_by_doctor_id' => null, 'jawda_patient_id' => 999]);
 
         $response = $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [
             'patient_id' => $patient->id,
@@ -95,7 +96,7 @@ class AdmissionDoctorWhatsAppNoticeTest extends TestCase
 
         $user = User::factory()->create();
         $doctor = Doctor::factory()->create(['phone' => '01098765432']);
-        $patient = Patient::factory()->create(['referred_by_doctor_id' => $doctor->id]);
+        $patient = Patient::factory()->create(['referred_by_doctor_id' => $doctor->id, 'jawda_patient_id' => 999]);
 
         $response = $this->actingAs($user, 'sanctum')->postJson('/api/admissions/register', [
             'patient_id' => $patient->id,
@@ -158,6 +159,7 @@ class AdmissionDoctorWhatsAppNoticeTest extends TestCase
         $patient = Patient::factory()->create([
             'referred_by_doctor_id' => $referringDoctor->id,
             'admitting_doctor_id' => $admittingDoctor->id,
+            'jawda_patient_id' => 999,
         ]);
 
         $this->actingAs($user, 'sanctum')->postJson('/api/admissions', [

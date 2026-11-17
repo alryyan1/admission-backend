@@ -11,10 +11,13 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AdmissionService
 {
+    public function __construct(private readonly JawdaMedicalClient $jawdaMedicalClient) {}
+
     /**
      * The status/patient/search/bed-room/date filters shared by the admissions listing
      * and the admissions payments PDF report.
@@ -98,6 +101,7 @@ class AdmissionService
         });
 
         SendAdmissionWhatsAppNotice::dispatch($admission);
+        $this->linkToJawdaMedical($admission);
 
         return $admission;
     }
@@ -107,7 +111,7 @@ class AdmissionService
      */
     public function registerPatient(Patient $patient, User $user): Admission
     {
-        return DB::transaction(function () use ($patient, $user) {
+        $admission = DB::transaction(function () use ($patient, $user) {
             $hasActiveAdmission = Admission::query()
                 ->where('patient_id', $patient->id)
                 ->where('status', 'admitted') // admitted ده التنويم معناه نشط
@@ -127,6 +131,76 @@ class AdmissionService
 
             return $admission;
         });
+
+        $this->linkToJawdaMedical($admission);
+
+        return $admission;
+    }
+
+    /**
+     * Best-effort wrapper around registerInJawdaMedical(), used right after
+     * an admission is created: a failure here (network error, clinic shift
+     * closed, etc.) never blocks the admission itself. The patient simply
+     * stays is_local_only and can be linked later through
+     * PatientController::linkJawda().
+     */
+    private function linkToJawdaMedical(Admission $admission): void
+    {
+        if ($admission->patient === null || $admission->patient->jawda_patient_id !== null) {
+            return;
+        }
+
+        try {
+            $this->registerInJawdaMedical($admission);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to link admission to Jawda Medical', [
+                'admission_id' => $admission->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Registers a matching patient in Jawda Medical, tagged with this
+     * admission's id, so Jawda Medical can look the admission back up later
+     * (e.g. for the patient's companion contact when recording a given
+     * dose), and stores the resulting jawda_patient_id so both systems
+     * share one patient identity. Throws on failure, so a manual retry
+     * (PatientController::linkJawda()) can report it back to the caller.
+     *
+     * Skipped if the patient was already linked by an earlier admission:
+     * Jawda Medical has no notion of "re-admission", so there is no way to
+     * tag a further visit onto an already-registered patient there without
+     * creating a duplicate.
+     */
+    public function registerInJawdaMedical(Admission $admission): void
+    {
+        $patient = $admission->patient;
+
+        if ($patient === null || $patient->jawda_patient_id !== null) {
+            return;
+        }
+
+        $medicalPatient = $this->jawdaMedicalClient->createPatient([
+            'name' => $patient->name,
+            'phone' => $patient->phone,
+            'gender' => $patient->gender,
+            'age_year' => $patient->age_year,
+            'age_month' => $patient->age_month,
+            'age_day' => $patient->age_day,
+            'address' => $patient->address,
+            'doctor_name' => $patient->admittingDoctor?->name,
+            'admission_id' => $admission->id,
+        ]);
+
+        if (! isset($medicalPatient['id'])) {
+            throw new \RuntimeException('Jawda Medical did not return a patient id.');
+        }
+
+        $patient->update([
+            'jawda_patient_id' => $medicalPatient['id'],
+            'is_local_only' => false,
+        ]);
     }
 
     /**

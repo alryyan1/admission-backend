@@ -53,6 +53,13 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']);
 
+/**
+ * Public, unauthenticated endpoint consumed server-to-server by Jawda
+ * Medical to fetch an admission's companion/emergency contact (e.g. to send
+ * a WhatsApp notice after a dose is recorded as given).
+ */
+Route::get('/public/admissions/{admission}/companion-contact', [AdmissionController::class, 'companionContact']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);

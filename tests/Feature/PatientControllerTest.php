@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Admission;
 use App\Models\Company;
 use App\Models\Doctor;
 use App\Models\GuardianRelationship;
@@ -276,39 +277,14 @@ class PatientControllerTest extends TestCase
         $response->assertUnprocessable()->assertJsonValidationErrors(['admitting_doctor_id', 'referred_by_doctor_id']);
     }
 
-    public function test_creating_a_patient_links_it_to_a_newly_registered_jawda_medical_patient(): void
+    public function test_creating_a_patient_does_not_register_them_in_jawda_medical(): void
     {
-        Http::fake([
-            '*/public/admission-patients' => Http::response(['data' => ['id' => 777]], 201),
-        ]);
+        Http::fake();
         $clerk = User::factory()->create(['role' => 'admission_clerk']);
-        $admittingDoctor = Doctor::factory()->create(['name' => 'د. أحمد الطيب']);
 
         $response = $this->actingAs($clerk, 'sanctum')->postJson('/api/patients', [
             'name' => 'أحمد',
             'gender' => 'male',
-            'admitting_doctor_id' => $admittingDoctor->id,
-        ]);
-
-        $response->assertCreated();
-        $this->assertDatabaseHas('patients', [
-            'name' => 'أحمد',
-            'jawda_patient_id' => 777,
-            'is_local_only' => false,
-        ]);
-
-        Http::assertSent(fn ($request) => $request['doctor_name'] === 'د. أحمد الطيب');
-    }
-
-    public function test_creating_a_patient_stays_local_only_when_jawda_medical_registration_fails(): void
-    {
-        Http::fake([
-            '*/public/admission-patients' => Http::response(['message' => 'لا توجد وردية مفتوحة حالياً.'], 400),
-        ]);
-        $clerk = User::factory()->create(['role' => 'admission_clerk']);
-
-        $response = $this->actingAs($clerk, 'sanctum')->postJson('/api/patients', [
-            'name' => 'أحمد',
         ]);
 
         $response->assertCreated();
@@ -317,6 +293,7 @@ class PatientControllerTest extends TestCase
             'jawda_patient_id' => null,
             'is_local_only' => true,
         ]);
+        Http::assertNothingSent();
     }
 
     public function test_admission_clerk_can_retry_linking_a_local_only_patient_to_jawda_medical(): void
@@ -326,6 +303,7 @@ class PatientControllerTest extends TestCase
         ]);
         $clerk = User::factory()->create(['role' => 'admission_clerk']);
         $patient = Patient::factory()->create(['jawda_patient_id' => null, 'is_local_only' => true]);
+        $admission = Admission::factory()->create(['patient_id' => $patient->id]);
 
         $response = $this->actingAs($clerk, 'sanctum')->postJson("/api/patients/{$patient->id}/link-jawda-medical");
 
@@ -337,6 +315,7 @@ class PatientControllerTest extends TestCase
             'jawda_patient_id' => 999,
             'is_local_only' => false,
         ]);
+        Http::assertSent(fn ($request) => $request['admission_id'] === $admission->id);
     }
 
     public function test_retrying_the_link_reports_an_error_when_jawda_medical_registration_fails(): void
@@ -346,6 +325,7 @@ class PatientControllerTest extends TestCase
         ]);
         $clerk = User::factory()->create(['role' => 'admission_clerk']);
         $patient = Patient::factory()->create(['jawda_patient_id' => null, 'is_local_only' => true]);
+        Admission::factory()->create(['patient_id' => $patient->id]);
 
         $response = $this->actingAs($clerk, 'sanctum')->postJson("/api/patients/{$patient->id}/link-jawda-medical");
 
@@ -355,6 +335,18 @@ class PatientControllerTest extends TestCase
             'jawda_patient_id' => null,
             'is_local_only' => true,
         ]);
+    }
+
+    public function test_retrying_the_link_without_any_admission_reports_an_error(): void
+    {
+        Http::fake();
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+        $patient = Patient::factory()->create(['jawda_patient_id' => null, 'is_local_only' => true]);
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson("/api/patients/{$patient->id}/link-jawda-medical");
+
+        $response->assertStatus(422);
+        Http::assertNothingSent();
     }
 
     public function test_retrying_the_link_on_an_already_linked_patient_is_a_no_op(): void

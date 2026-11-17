@@ -7,6 +7,7 @@ use App\Http\Requests\ImportJawdaPatientRequest;
 use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
 use App\Models\Patient;
+use App\Services\AdmissionService;
 use App\Services\JawdaMedicalClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class PatientController extends Controller
     /** @var list<string> */
     private const RELATIONS = ['insuranceCompany', 'company', 'guardianRelationship', 'admittingDoctor', 'referredByDoctor'];
 
-    public function __construct(private readonly JawdaMedicalClient $jawdaMedicalClient) {}
+    public function __construct(private readonly AdmissionService $admissionService) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -45,8 +46,6 @@ class PatientController extends Controller
     public function store(StorePatientRequest $request): JsonResponse
     {
         $patient = Patient::create([...$request->validated(), 'is_local_only' => true]);
-
-        $this->linkToJawdaMedical($patient);
 
         return response()->json($patient->load(self::RELATIONS), Response::HTTP_CREATED);
     }
@@ -87,10 +86,11 @@ class PatientController extends Controller
     }
 
     /**
-     * Manually (re)try registering a local-only patient in Jawda Medical,
-     * e.g. after the automatic attempt at creation time failed (the clinic
-     * shift was closed, a network error, etc). Unlike the automatic
-     * best-effort attempt, this reports failure back to the caller.
+     * Manually (re)try registering a local-only patient in Jawda Medical
+     * under their latest admission, e.g. after the automatic attempt at
+     * admission time failed (the clinic shift was closed, a network error,
+     * etc). Unlike the automatic best-effort attempt, this reports failure
+     * back to the caller.
      */
     public function linkJawda(Patient $patient): JsonResponse
     {
@@ -98,8 +98,16 @@ class PatientController extends Controller
             return response()->json($patient->load(self::RELATIONS));
         }
 
+        $admission = $patient->admissions()->latest()->first();
+
+        if ($admission === null) {
+            return response()->json([
+                'message' => 'لا يوجد تنويم مرتبط بهذا المريض لربطه بنظام جوده الطبي.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         try {
-            $this->registerInJawdaMedical($patient);
+            $this->admissionService->registerInJawdaMedical($admission);
         } catch (\Throwable $e) {
             Log::warning('Failed to register patient in Jawda Medical', [
                 'patient_id' => $patient->id,
@@ -111,48 +119,6 @@ class PatientController extends Controller
             ], Response::HTTP_BAD_GATEWAY);
         }
 
-        return response()->json($patient->load(self::RELATIONS));
-    }
-
-    /**
-     * Register a matching patient in Jawda Medical and store the resulting
-     * jawda_patient_id, so both systems share one patient identity. This is
-     * best-effort: a failure (e.g. the clinic shift is closed, or a network
-     * error) never blocks local patient creation. The patient simply stays
-     * is_local_only and can be linked later through linkJawda().
-     */
-    private function linkToJawdaMedical(Patient $patient): void
-    {
-        try {
-            $this->registerInJawdaMedical($patient);
-        } catch (\Throwable $e) {
-            Log::warning('Failed to register patient in Jawda Medical', [
-                'patient_id' => $patient->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    private function registerInJawdaMedical(Patient $patient): void
-    {
-        $medicalPatient = $this->jawdaMedicalClient->createPatient([
-            'name' => $patient->name,
-            'phone' => $patient->phone,
-            'gender' => $patient->gender,
-            'age_year' => $patient->age_year,
-            'age_month' => $patient->age_month,
-            'age_day' => $patient->age_day,
-            'address' => $patient->address,
-            'doctor_name' => $patient->admittingDoctor?->name,
-        ]);
-
-        if (! isset($medicalPatient['id'])) {
-            throw new \RuntimeException('Jawda Medical did not return a patient id.');
-        }
-
-        $patient->update([
-            'jawda_patient_id' => $medicalPatient['id'],
-            'is_local_only' => false,
-        ]);
+        return response()->json($patient->refresh()->load(self::RELATIONS));
     }
 }
