@@ -330,29 +330,12 @@ class PdfDocumentService
         $admission->loadMissing(
             'patient',
             'shortStayAssessment',
-            'doctorOrders.doses',
             'vitalSigns',
-            'intakeOutputRecords',
         );
 
         $genderLabels = ['male' => 'ذكر', 'female' => 'أنثى'];
         $patient = $admission->patient;
         $assessment = $admission->shortStayAssessment;
-
-        $medicationRows = $admission->doctorOrders->flatMap(function ($order) {
-            $times = $order->doses
-                ->sortBy('administered_at')
-                ->map(fn ($dose) => $this->dateTime($dose->administered_at))
-                ->values();
-
-            $chunks = $times->isEmpty() ? collect([collect()]) : $times->chunk(5);
-
-            return $chunks->values()->map(fn ($chunk, $index) => [
-                'name' => $index === 0 ? $order->order_text : '— تابع —',
-                'frequency' => $order->frequency ?? '—',
-                'times' => array_pad($chunk->values()->all(), 5, '—'),
-            ]);
-        })->values()->all();
 
         $vitalsRows = $admission->vitalSigns->sortBy('recorded_at')->map(fn ($vital) => [
             'time' => $this->dateTime($vital->recorded_at),
@@ -363,18 +346,6 @@ class PdfDocumentService
             'bp' => $vital->blood_pressure ?? '—',
             'mop' => $vital->mop ?? '—',
             'rbg' => (string) ($vital->rbg ?? '—'),
-        ])->values()->all();
-
-        $ioRows = $admission->intakeOutputRecords->sortBy('recorded_at')->map(fn ($record) => [
-            'time' => $this->dateTime($record->recorded_at),
-            'feeding' => (string) ($record->feeding ?? '—'),
-            'iv_fluid' => (string) ($record->iv_fluid ?? '—'),
-            'maintenance' => (string) ($record->maintenance ?? '—'),
-            'urine_output' => (string) ($record->urine_output ?? '—'),
-            'insensible_losses' => (string) ($record->insensible_losses ?? '—'),
-            'total_intake' => (string) ($record->total_intake ?? '—'),
-            'total_output' => (string) ($record->total_output ?? '—'),
-            'balance' => (string) ($record->balance ?? '—'),
         ])->values()->all();
 
         $pdf = (new ShortStayChartPdf)->render(
@@ -390,9 +361,7 @@ class PdfDocumentService
             pmh: $assessment?->pmh ?? '',
             chiefComplaint: $assessment?->chief_complaint ?? '',
             plan: $assessment?->plan ?? '',
-            medicationRows: $medicationRows,
             vitalsRows: $vitalsRows,
-            ioRows: $ioRows,
         );
 
         return $this->renderer->toResponse($pdf, "short-stay-chart-{$admission->id}.pdf");
@@ -440,7 +409,6 @@ class PdfDocumentService
                     ],
                     [
                         ['label' => 'رقم المريض', 'value' => $patient ? '#'.$patient->id : '—'],
-                        ['label' => 'فصيلة الدم', 'value' => $patient?->blood_type ?? '—'],
                         ['label' => 'الهاتف', 'value' => $patient?->phone ?? '—'],
                     ],
                     [
@@ -497,22 +465,6 @@ class PdfDocumentService
                     ...($admission->entry_type === Admission::ENTRY_TYPE_HOSPITAL_TRANSFER ? [[
                         ['label' => 'المستشفى المحوِّل', 'value' => $admission->referring_hospital_name ?? '—', 'span' => 3],
                     ]] : []),
-                ],
-            ],
-            [
-                'title' => 'التاريخ الطبي',
-                'rows' => [
-                    [
-                        ['label' => 'الحساسية', 'value' => $patient?->allergies ?? $notRecorded, 'span' => 3, 'alert' => true],
-                    ],
-                    [
-                        ['label' => 'الأمراض المزمنة', 'value' => $patient?->chronic_diseases ?? $notRecorded],
-                        ['label' => 'الأدوية الحالية', 'value' => $patient?->current_medications ?? $notRecorded],
-                        ['label' => 'العمليات الجراحية السابقة', 'value' => $patient?->past_surgeries ?? $notRecorded],
-                    ],
-                    [
-                        ['label' => 'التاريخ المرضي', 'value' => $patient?->medical_history ?? $notRecorded, 'span' => 3],
-                    ],
                 ],
             ],
             [

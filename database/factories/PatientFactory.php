@@ -26,13 +26,6 @@ class PatientFactory extends Factory
             'emergency_contact_relationship' => fake()->optional()->randomElement(['زوج', 'زوجة', 'ابن', 'ابنة', 'أخ', 'أخت', 'والد', 'والدة']),
             'emergency_contact_phone' => fake()->optional()->phoneNumber(),
             'emergency_contact_address' => fake()->optional()->address(),
-            'blood_type' => fake()->optional()->randomElement(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
-            'allergies' => fake()->optional()->sentence(),
-            'chronic_diseases' => fake()->optional()->sentence(),
-            'current_medications' => fake()->optional()->sentence(),
-            'past_surgeries' => fake()->optional()->sentence(),
-            'medical_history' => fake()->optional()->paragraph(),
-            'medical_notes' => fake()->optional()->sentence(),
         ];
     }
 }

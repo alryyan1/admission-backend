@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
 class PatientController extends Controller
 {
     /** @var list<string> */
-    private const RELATIONS = ['insuranceCompany', 'admittingDoctor', 'referredByDoctor'];
+    private const RELATIONS = ['insuranceCompany', 'company', 'guardianRelationship', 'admittingDoctor', 'referredByDoctor'];
 
     public function __construct(private readonly JawdaMedicalClient $jawdaMedicalClient) {}
 

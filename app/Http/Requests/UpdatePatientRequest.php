@@ -26,19 +26,14 @@ class UpdatePatientRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:255'],
             'insurance_company_id' => ['sometimes', 'nullable', 'integer', 'exists:insurance_companies,id'],
             'insurance_card_number' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'company_id' => ['sometimes', 'nullable', 'integer', 'exists:companies,id'],
+            'guardian_relationship_id' => ['sometimes', 'nullable', 'integer', 'exists:guardian_relationships,id'],
             'admitting_doctor_id' => ['sometimes', 'nullable', 'integer', 'exists:doctors,id'],
             'referred_by_doctor_id' => ['sometimes', 'nullable', 'integer', 'exists:doctors,id'],
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
             'emergency_contact_relationship' => ['nullable', 'string', 'max:100'],
             'emergency_contact_phone' => ['nullable', 'string', 'max:50'],
             'emergency_contact_address' => ['nullable', 'string', 'max:255'],
-            'blood_type' => ['nullable', 'string', 'in:A+,A-,B+,B-,AB+,AB-,O+,O-'],
-            'allergies' => ['nullable', 'string'],
-            'chronic_diseases' => ['nullable', 'string'],
-            'current_medications' => ['nullable', 'string'],
-            'past_surgeries' => ['nullable', 'string'],
-            'medical_history' => ['nullable', 'string'],
-            'medical_notes' => ['nullable', 'string'],
         ];
     }
 }

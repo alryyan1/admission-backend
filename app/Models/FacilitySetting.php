@@ -23,6 +23,7 @@ class FacilitySetting extends Model
         'use_stamp',
         'use_watermark',
         'notify_referring_doctor_whatsapp',
+        'show_patient_relative_fields',
     ];
 
     protected $casts = [
@@ -30,6 +31,7 @@ class FacilitySetting extends Model
         'use_stamp' => 'boolean',
         'use_watermark' => 'boolean',
         'notify_referring_doctor_whatsapp' => 'boolean',
+        'show_patient_relative_fields' => 'boolean',
     ];
 
     protected $appends = [
@@ -45,6 +47,7 @@ class FacilitySetting extends Model
             'use_stamp' => true,
             'use_watermark' => false,
             'notify_referring_doctor_whatsapp' => true,
+            'show_patient_relative_fields' => false,
         ]);
     }
 

@@ -102,6 +102,10 @@ class FacilitySettingController extends Controller
             $setting->notify_referring_doctor_whatsapp = $request->boolean('notify_referring_doctor_whatsapp');
         }
 
+        if ($request->has('show_patient_relative_fields')) {
+            $setting->show_patient_relative_fields = $request->boolean('show_patient_relative_fields');
+        }
+
         $setting->save();
 
         return response()->json($setting->fresh());

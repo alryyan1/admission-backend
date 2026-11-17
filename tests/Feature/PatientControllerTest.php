@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\Doctor;
+use App\Models\GuardianRelationship;
 use App\Models\InsuranceCompany;
 use App\Models\Patient;
 use App\Models\User;
@@ -52,6 +54,78 @@ class PatientControllerTest extends TestCase
 
         $response->assertUnprocessable()->assertJsonValidationErrors(['insurance_company_id']);
         $this->assertDatabaseCount('patients', 0);
+    }
+
+    public function test_admission_clerk_can_create_a_patient_linked_to_a_company_and_guardian_relationship(): void
+    {
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+        $company = Company::factory()->create(['name' => 'شركة سابك']);
+        $relationship = GuardianRelationship::factory()->create();
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson('/api/patients', [
+            'name' => 'أحمد',
+            'company_id' => $company->id,
+            'guardian_relationship_id' => $relationship->id,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('company_id', $company->id)
+            ->assertJsonPath('company.name', 'شركة سابك')
+            ->assertJsonPath('guardian_relationship_id', $relationship->id)
+            ->assertJsonPath('guardian_relationship.name', $relationship->name);
+        $this->assertDatabaseHas('patients', [
+            'name' => 'أحمد',
+            'company_id' => $company->id,
+            'guardian_relationship_id' => $relationship->id,
+        ]);
+    }
+
+    public function test_creating_a_patient_rejects_an_unknown_company(): void
+    {
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson('/api/patients', [
+            'name' => 'أحمد',
+            'company_id' => 999999,
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['company_id']);
+        $this->assertDatabaseCount('patients', 0);
+    }
+
+    public function test_creating_a_patient_rejects_an_unknown_guardian_relationship(): void
+    {
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson('/api/patients', [
+            'name' => 'أحمد',
+            'guardian_relationship_id' => 999999,
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors(['guardian_relationship_id']);
+        $this->assertDatabaseCount('patients', 0);
+    }
+
+    public function test_admission_clerk_can_create_a_patient_with_a_relative_contact(): void
+    {
+        $clerk = User::factory()->create(['role' => 'admission_clerk']);
+
+        $response = $this->actingAs($clerk, 'sanctum')->postJson('/api/patients', [
+            'name' => 'أحمد',
+            'emergency_contact_name' => 'محمد',
+            'emergency_contact_relationship' => 'أخ',
+            'emergency_contact_phone' => '0501234567',
+            'emergency_contact_address' => 'الرياض',
+        ]);
+
+        $response->assertCreated()->assertJsonPath('emergency_contact_name', 'محمد');
+        $this->assertDatabaseHas('patients', [
+            'name' => 'أحمد',
+            'emergency_contact_name' => 'محمد',
+            'emergency_contact_relationship' => 'أخ',
+            'emergency_contact_phone' => '0501234567',
+            'emergency_contact_address' => 'الرياض',
+        ]);
     }
 
     public function test_admission_clerk_can_link_and_unlink_a_patient_insurance_company(): void

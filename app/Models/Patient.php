@@ -24,6 +24,8 @@ class Patient extends Model
         'address',
         'insurance_company_id',
         'insurance_card_number',
+        'company_id',
+        'guardian_relationship_id',
         'admitting_doctor_id',
         'referred_by_doctor_id',
         'is_local_only',
@@ -31,13 +33,6 @@ class Patient extends Model
         'emergency_contact_relationship',
         'emergency_contact_phone',
         'emergency_contact_address',
-        'blood_type',
-        'allergies',
-        'chronic_diseases',
-        'current_medications',
-        'past_surgeries',
-        'medical_history',
-        'medical_notes',
     ];
 
     protected $casts = [
@@ -52,6 +47,16 @@ class Patient extends Model
     public function insuranceCompany(): BelongsTo
     {
         return $this->belongsTo(InsuranceCompany::class);
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function guardianRelationship(): BelongsTo
+    {
+        return $this->belongsTo(GuardianRelationship::class);
     }
 
     public function admittingDoctor(): BelongsTo

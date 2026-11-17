@@ -31,6 +31,7 @@ class UpdateFacilitySettingRequest extends FormRequest
             'use_stamp' => ['nullable', 'boolean'],
             'use_watermark' => ['nullable', 'boolean'],
             'notify_referring_doctor_whatsapp' => ['nullable', 'boolean'],
+            'show_patient_relative_fields' => ['nullable', 'boolean'],
         ];
     }
 }

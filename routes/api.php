@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AdmissionRevenueReportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BackupController;
 use App\Http\Controllers\Api\BedController;
+use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\DailyRevenueReportController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\DoctorEntitlementsReportController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\ExpensesReportController;
 use App\Http\Controllers\Api\FacilitySettingController;
 use App\Http\Controllers\Api\FloorController;
+use App\Http\Controllers\Api\GuardianRelationshipController;
 use App\Http\Controllers\Api\InsuranceCompanyController;
 use App\Http\Controllers\Api\NursingAssignmentController;
 use App\Http\Controllers\Api\OperationController;
@@ -86,6 +88,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('specialists', SpecialistController::class)->only(['index']);
     Route::apiResource('specialists', SpecialistController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
+
+    Route::apiResource('companies', CompanyController::class)->only(['index']);
+    Route::apiResource('companies', CompanyController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
+
+    Route::apiResource('guardian-relationships', GuardianRelationshipController::class)->only(['index']);
+    Route::apiResource('guardian-relationships', GuardianRelationshipController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
 
     Route::apiResource('insurance-companies', InsuranceCompanyController::class)->only(['index']);
     Route::apiResource('insurance-companies', InsuranceCompanyController::class)->only(['store', 'update', 'destroy'])->middleware('role:admin');
