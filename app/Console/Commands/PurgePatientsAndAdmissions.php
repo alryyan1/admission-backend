@@ -4,12 +4,10 @@ namespace App\Console\Commands;
 
 use App\Models\Admission;
 use App\Models\AdmissionDeposit;
-use App\Models\DoctorOrder;
 use App\Models\Operation;
 use App\Models\OperationTeamMember;
 use App\Models\Patient;
 use App\Models\RequestedService;
-use App\Models\TreatmentDose;
 use App\Models\VitalSign;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
@@ -27,8 +25,6 @@ class PurgePatientsAndAdmissions extends Command
      * @var array<int, class-string<Model>>
      */
     private const DELETION_ORDER = [
-        TreatmentDose::class,
-        DoctorOrder::class,
         AdmissionDeposit::class,
         RequestedService::class,
         VitalSign::class,

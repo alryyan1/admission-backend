@@ -122,16 +122,6 @@ class Admission extends Model
         return $this->hasMany(VitalSign::class);
     }
 
-    public function doctorOrders(): HasMany
-    {
-        return $this->hasMany(DoctorOrder::class);
-    }
-
-    public function intakeOutputRecords(): HasMany
-    {
-        return $this->hasMany(IntakeOutputRecord::class);
-    }
-
     public function shortStayAssessment(): HasOne
     {
         return $this->hasOne(ShortStayAssessment::class);

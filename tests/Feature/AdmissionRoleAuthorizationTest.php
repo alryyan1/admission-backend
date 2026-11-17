@@ -67,30 +67,6 @@ class AdmissionRoleAuthorizationTest extends TestCase
         $response->assertCreated();
     }
 
-    public function test_doctor_cannot_record_intake_output(): void
-    {
-        $doctor = User::factory()->role('doctor')->create();
-        $admission = Admission::factory()->create();
-
-        $response = $this->actingAs($doctor, 'sanctum')->postJson("/api/admissions/{$admission->id}/intake-output", [
-            'feeding' => 100,
-        ]);
-
-        $response->assertForbidden();
-    }
-
-    public function test_nurse_can_record_intake_output(): void
-    {
-        $nurse = User::factory()->role('nurse')->create();
-        $admission = Admission::factory()->create();
-
-        $response = $this->actingAs($nurse, 'sanctum')->postJson("/api/admissions/{$admission->id}/intake-output", [
-            'feeding' => 100,
-        ]);
-
-        $response->assertCreated();
-    }
-
     public function test_nurse_cannot_record_short_stay_assessment(): void
     {
         $nurse = User::factory()->role('nurse')->create();

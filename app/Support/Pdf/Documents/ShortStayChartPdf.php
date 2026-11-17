@@ -6,11 +6,11 @@ use App\Support\Pdf\LetterheadPdf;
 
 /**
  * The short-stay chart (إقامة قصيرة): the one-time doctor assessment
- * (patient info, initial vitals, PMH/C-O/Plan, signature), the medications
- * table, the repeating vitals-monitoring table, and the intake/output chart.
- * Built from LetterheadPdf's generic label/table primitives rather than
- * bespoke drawing code, since this form is plain tables and label/value
- * rows (unlike DischargeFormPdf's rounded field cards).
+ * (patient info, initial vitals, PMH/C-O/Plan, signature) and the
+ * repeating vitals-monitoring table. Built from LetterheadPdf's generic
+ * label/table primitives rather than bespoke drawing code, since this
+ * form is plain tables and label/value rows (unlike DischargeFormPdf's
+ * rounded field cards).
  */
 class ShortStayChartPdf extends LetterheadPdf
 {
@@ -27,9 +27,7 @@ class ShortStayChartPdf extends LetterheadPdf
     }
 
     /**
-     * @param  list<array{name: string, frequency: string, times: list<string>}>  $medicationRows
      * @param  list<array{time: string, hr: string, spo2: string, rr: string, temp: string, bp: string, mop: string, rbg: string}>  $vitalsRows
-     * @param  list<array{time: string, feeding: string, iv_fluid: string, maintenance: string, urine_output: string, insensible_losses: string, total_intake: string, total_output: string, balance: string}>  $ioRows
      */
     public function render(
         string $patientName,
@@ -44,9 +42,7 @@ class ShortStayChartPdf extends LetterheadPdf
         string $pmh,
         string $chiefComplaint,
         string $plan,
-        array $medicationRows,
         array $vitalsRows,
-        array $ioRows,
     ): self {
         $this->sectionTitle('بيانات المريض');
         $this->kvRow('اسم المريض', $patientName);
@@ -65,24 +61,6 @@ class ShortStayChartPdf extends LetterheadPdf
 
         $this->signatureRow('توقيع الطبيب', 'التاريخ والوقت');
 
-        $this->sectionTitle('جدول الأدوية');
-        $medicationWidths = $this->columnWidths([0.22, 0.14, 0.128, 0.128, 0.128, 0.128, 0.128]);
-        $this->tableHeader($this->columns(
-            ['الدواء', 'التكرار', 'وقت 1', 'وقت 2', 'وقت 3', 'وقت 4', 'وقت 5'],
-            $medicationWidths
-        ));
-        if ($medicationRows === []) {
-            $this->tableEmptyRow('لا توجد أدوية مسجّلة');
-        } else {
-            foreach ($medicationRows as $row) {
-                $this->tableRow([
-                    $row['name'],
-                    $row['frequency'],
-                    ...$row['times'],
-                ], $medicationWidths);
-            }
-        }
-
         $this->sectionTitle('متابعة العلامات الحيوية');
         $vitalsWidths = $this->columnWidths([0.16, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12]);
         $this->tableHeader($this->columns(
@@ -97,24 +75,6 @@ class ShortStayChartPdf extends LetterheadPdf
                     $row['time'], $row['hr'], $row['spo2'], $row['rr'],
                     $row['temp'], $row['bp'], $row['mop'], $row['rbg'],
                 ], $vitalsWidths);
-            }
-        }
-
-        $this->sectionTitle('جدول السوائل (Input / Output)');
-        $ioWidths = $this->columnWidths([0.12, 0.11, 0.11, 0.11, 0.11, 0.12, 0.11, 0.11, 0.1]);
-        $this->tableHeader($this->columns(
-            ['الوقت', 'التغذية', 'سوائل IV', 'المحافظ', 'البول', 'الفقد غير الملحوظ', 'إجمالي الوارد', 'إجمالي الصادر', 'الميزان'],
-            $ioWidths
-        ));
-        if ($ioRows === []) {
-            $this->tableEmptyRow('لا توجد تسجيلات بعد');
-        } else {
-            foreach ($ioRows as $row) {
-                $this->tableRow([
-                    $row['time'], $row['feeding'], $row['iv_fluid'], $row['maintenance'],
-                    $row['urine_output'], $row['insensible_losses'], $row['total_intake'],
-                    $row['total_output'], $row['balance'],
-                ], $ioWidths);
             }
         }
 

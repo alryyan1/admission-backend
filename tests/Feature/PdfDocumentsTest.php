@@ -338,15 +338,6 @@ class PdfDocumentsTest extends TestCase
             'plan' => 'مراقبة وسوائل وريدية',
         ]);
         $admission->vitalSigns()->create(['pulse' => 82, 'mop' => 'NC 2L', 'rbg' => 110]);
-        $order = $admission->doctorOrders()->create(['order_text' => 'Paracetamol', 'frequency' => 'q6h']);
-        $order->doses()->create([]);
-        $admission->intakeOutputRecords()->create([
-            'feeding' => 100,
-            'iv_fluid' => 500,
-            'total_intake' => 600,
-            'total_output' => 350,
-            'balance' => 250,
-        ]);
 
         $this->assertPdf(
             $this->actingAs($user, 'sanctum')->get("/api/admissions/{$admission->id}/short-stay-chart.pdf")

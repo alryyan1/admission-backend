@@ -9,7 +9,6 @@ use App\Http\Controllers\Api\BedController;
 use App\Http\Controllers\Api\DailyRevenueReportController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\DoctorEntitlementsReportController;
-use App\Http\Controllers\Api\DoctorOrderController;
 use App\Http\Controllers\Api\DoctorRevenueReportController;
 use App\Http\Controllers\Api\ExcelController;
 use App\Http\Controllers\Api\ExpenseController;
@@ -17,7 +16,6 @@ use App\Http\Controllers\Api\ExpensesReportController;
 use App\Http\Controllers\Api\FacilitySettingController;
 use App\Http\Controllers\Api\FloorController;
 use App\Http\Controllers\Api\InsuranceCompanyController;
-use App\Http\Controllers\Api\IntakeOutputRecordController;
 use App\Http\Controllers\Api\NursingAssignmentController;
 use App\Http\Controllers\Api\OperationController;
 use App\Http\Controllers\Api\PatientController;
@@ -37,7 +35,6 @@ use App\Http\Controllers\Api\ShortStayAssessmentController;
 use App\Http\Controllers\Api\SpecialistController;
 use App\Http\Controllers\Api\StatisticsController;
 use App\Http\Controllers\Api\TeamRoleController;
-use App\Http\Controllers\Api\TreatmentDoseController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VitalSignController;
 use App\Http\Controllers\Api\WardController;
@@ -140,13 +137,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/admissions/{admission}/vitals', [VitalSignController::class, 'index']);
     Route::post('/admissions/{admission}/vitals', [VitalSignController::class, 'store'])->middleware('role:admin,nurse');
-
-    Route::get('/admissions/{admission}/orders', [DoctorOrderController::class, 'index']);
-    Route::post('/admissions/{admission}/orders', [DoctorOrderController::class, 'store'])->middleware('role:admin,doctor');
-    Route::post('/orders/{order}/doses', [TreatmentDoseController::class, 'store'])->middleware('role:admin,nurse');
-
-    Route::get('/admissions/{admission}/intake-output', [IntakeOutputRecordController::class, 'index']);
-    Route::post('/admissions/{admission}/intake-output', [IntakeOutputRecordController::class, 'store'])->middleware('role:admin,nurse');
 
     Route::get('/admissions/{admission}/short-stay-assessment', [ShortStayAssessmentController::class, 'show']);
     Route::post('/admissions/{admission}/short-stay-assessment', [ShortStayAssessmentController::class, 'store'])->middleware('role:admin,doctor');
