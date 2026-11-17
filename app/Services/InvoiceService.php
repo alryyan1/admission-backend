@@ -51,7 +51,6 @@ class InvoiceService
             'quantity' => $service->quantity,
             'unit_price' => (float) $service->unit_price,
             'total_price' => (float) $service->total_price,
-            'is_auto_added' => (bool) $service->is_auto_added,
             'is_operation' => false,
             'created_at' => $service->created_at,
         ]);
@@ -64,7 +63,6 @@ class InvoiceService
                 'quantity' => 1,
                 'unit_price' => (float) $operation->price,
                 'total_price' => (float) $operation->price,
-                'is_auto_added' => false,
                 'is_operation' => true,
                 'created_at' => $operation->scheduled_at ?? $operation->created_at,
             ]);
