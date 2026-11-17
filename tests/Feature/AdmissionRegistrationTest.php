@@ -5,11 +5,9 @@ namespace Tests\Feature;
 use App\Jobs\SendAdmissionWhatsAppNotice;
 use App\Models\Admission;
 use App\Models\Bed;
-use App\Models\ChartOpeningServiceSetting;
 use App\Models\Patient;
 use App\Models\RequestedService;
 use App\Models\Room;
-use App\Models\Service;
 use App\Models\User;
 use App\Services\WhatsAppService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -37,23 +35,6 @@ class AdmissionRegistrationTest extends TestCase
             ->assertJsonPath('admitted_by.id', $user->id);
         $this->assertMatchesRegularExpression('/^\d+$/', $response->json('admission_number'));
         $this->assertSame('available', $bed->refresh()->status);
-    }
-
-    public function test_registering_a_patient_adds_the_chart_opening_service_when_enabled(): void
-    {
-        $service = Service::factory()->create(['name_ar' => 'فتح ملف', 'price' => 50]);
-        ChartOpeningServiceSetting::current()->update(['service_id' => $service->id, 'auto_add' => true]);
-
-        $response = $this->actingAs(User::factory()->create(), 'sanctum')->postJson('/api/admissions/register', [
-            'patient_id' => Patient::factory()->create()->id,
-        ]);
-
-        $response->assertCreated();
-        $this->assertDatabaseHas('requested_services', [
-            'admission_id' => $response->json('id'),
-            'name' => 'فتح ملف',
-            'is_auto_added' => true,
-        ]);
     }
 
     public function test_registering_requires_an_existing_patient(): void

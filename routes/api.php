@@ -8,7 +8,6 @@ use App\Http\Controllers\Api\AdmissionRevenueReportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BackupController;
 use App\Http\Controllers\Api\BedController;
-use App\Http\Controllers\Api\ChartOpeningServiceSettingController;
 use App\Http\Controllers\Api\DailyRevenueReportController;
 use App\Http\Controllers\Api\DepositSettingController;
 use App\Http\Controllers\Api\DoctorController;
@@ -118,9 +117,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('expenses', ExpenseController::class)->middleware('role:admin,cashier');
 
     Route::middleware('role:admin')->group(function () {
-        Route::get('/settings/chart-opening-service', [ChartOpeningServiceSettingController::class, 'show']);
-        Route::put('/settings/chart-opening-service', [ChartOpeningServiceSettingController::class, 'update']);
-
         Route::get('/settings/deposit', [DepositSettingController::class, 'show']);
         Route::put('/settings/deposit', [DepositSettingController::class, 'update']);
 

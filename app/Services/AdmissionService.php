@@ -5,9 +5,7 @@ namespace App\Services;
 use App\Jobs\SendAdmissionWhatsAppNotice;
 use App\Models\Admission;
 use App\Models\Bed;
-use App\Models\ChartOpeningServiceSetting;
 use App\Models\Patient;
-use App\Models\Service;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -96,8 +94,6 @@ class AdmissionService
                     : null,
             ]);
 
-            $this->addChartOpeningService($admission);
-
             return $admission;
         });
 
@@ -128,8 +124,6 @@ class AdmissionService
                 'patient_id' => $patient->id,
                 'admitted_by' => $user->id,
             ]);
-
-            $this->addChartOpeningService($admission);
 
             return $admission;
         });
@@ -222,27 +216,6 @@ class AdmissionService
 
             return $lockedAdmission;
         });
-    }
-
-    private function addChartOpeningService(Admission $admission): void
-    {
-        $setting = ChartOpeningServiceSetting::current()->load('service');
-
-        if (! $setting->auto_add || ! $setting->service) {
-            return;
-        }
-
-        $this->createAutoRequestedService($admission, $setting->service);
-    }
-
-    private function createAutoRequestedService(Admission $admission, Service $service): void
-    {
-        $admission->requestedServices()->create([
-            'name' => $service->name_ar,
-            'quantity' => 1,
-            'unit_price' => $service->price,
-            'is_auto_added' => true,
-        ]);
     }
 
     /**
