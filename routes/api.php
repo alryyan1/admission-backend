@@ -9,7 +9,6 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BackupController;
 use App\Http\Controllers\Api\BedController;
 use App\Http\Controllers\Api\DailyRevenueReportController;
-use App\Http\Controllers\Api\DepositSettingController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\DoctorEntitlementsReportController;
 use App\Http\Controllers\Api\DoctorOrderController;
@@ -117,9 +116,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('expenses', ExpenseController::class)->middleware('role:admin,cashier');
 
     Route::middleware('role:admin')->group(function () {
-        Route::get('/settings/deposit', [DepositSettingController::class, 'show']);
-        Route::put('/settings/deposit', [DepositSettingController::class, 'update']);
-
         Route::get('/settings/facility', [FacilitySettingController::class, 'show']);
         Route::post('/settings/facility', [FacilitySettingController::class, 'update']);
         Route::get('/settings/facility/logo', [FacilitySettingController::class, 'logo']);
@@ -161,7 +157,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('nursing-assignments', NursingAssignmentController::class)->only(['store', 'destroy'])->middleware('role:admin');
 
     Route::get('/admissions/{admission}/deposits', [AdmissionDepositController::class, 'index']);
-    Route::post('/admissions/{admission}/deposits', [AdmissionDepositController::class, 'store'])->middleware(['role:admin,cashier', 'permission:add_direct_deposit']);
     Route::delete('/admissions/{admission}/deposits/{deposit}', [AdmissionDepositController::class, 'destroy'])->middleware('role:admin,cashier');
 
     Route::get('/admissions/{admission}/services', [RequestedServiceController::class, 'index']);

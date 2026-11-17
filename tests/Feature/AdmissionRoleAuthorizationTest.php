@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Admission;
 use App\Models\Bed;
 use App\Models\Patient;
-use App\Models\PaymentMethod;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -114,45 +113,6 @@ class AdmissionRoleAuthorizationTest extends TestCase
         ]);
 
         $response->assertOk();
-    }
-
-    public function test_nurse_cannot_record_a_deposit(): void
-    {
-        $nurse = User::factory()->role('nurse')->create();
-        $admission = Admission::factory()->create();
-
-        $response = $this->actingAs($nurse, 'sanctum')->postJson("/api/admissions/{$admission->id}/deposits", [
-            'amount' => 50000,
-            'payment_method_id' => PaymentMethod::factory()->create()->id,
-        ]);
-
-        $response->assertForbidden();
-    }
-
-    public function test_cashier_can_record_a_deposit(): void
-    {
-        $cashier = User::factory()->role('cashier')->permissions([User::PERMISSION_ADD_DIRECT_DEPOSIT])->create();
-        $admission = Admission::factory()->create();
-
-        $response = $this->actingAs($cashier, 'sanctum')->postJson("/api/admissions/{$admission->id}/deposits", [
-            'amount' => 50000,
-            'payment_method_id' => PaymentMethod::factory()->create()->id,
-        ]);
-
-        $response->assertCreated();
-    }
-
-    public function test_cashier_without_the_direct_deposit_permission_cannot_record_a_deposit(): void
-    {
-        $cashier = User::factory()->role('cashier')->create();
-        $admission = Admission::factory()->create();
-
-        $response = $this->actingAs($cashier, 'sanctum')->postJson("/api/admissions/{$admission->id}/deposits", [
-            'amount' => 50000,
-            'payment_method_id' => PaymentMethod::factory()->create()->id,
-        ]);
-
-        $response->assertForbidden();
     }
 
     public function test_nurse_cannot_remove_a_deposit(): void
