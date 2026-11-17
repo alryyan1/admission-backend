@@ -2,8 +2,6 @@
 
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AdmissionController;
-use App\Http\Controllers\Api\AdmissionDepositController;
-use App\Http\Controllers\Api\AdmissionInvoiceController;
 use App\Http\Controllers\Api\AdmissionRevenueReportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BackupController;
@@ -156,8 +154,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('nursing-assignments', NursingAssignmentController::class)->only(['index']);
     Route::apiResource('nursing-assignments', NursingAssignmentController::class)->only(['store', 'destroy'])->middleware('role:admin');
 
-    Route::get('/admissions/{admission}/deposits', [AdmissionDepositController::class, 'index']);
-    Route::delete('/admissions/{admission}/deposits/{deposit}', [AdmissionDepositController::class, 'destroy'])->middleware('role:admin,cashier');
+    Route::get('/admissions/{admission}/deposits', [AdmissionController::class, 'deposits']);
+    Route::delete('/admissions/{admission}/deposits/{deposit}', [AdmissionController::class, 'destroyDeposit'])->middleware('role:admin,cashier');
 
     Route::get('/admissions/{admission}/services', [RequestedServiceController::class, 'index']);
     Route::post('/admissions/{admission}/services', [RequestedServiceController::class, 'store'])->middleware('role:admin,nurse,doctor');
@@ -184,7 +182,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::patch('/accountant/team-members/{teamMember}/entitlement', [OperationController::class, 'updateTeamMemberEntitlement'])->middleware('role:admin,cashier');
 
-    Route::get('/admissions/{admission}/invoice', [AdmissionInvoiceController::class, 'show']);
+    Route::get('/admissions/{admission}/invoice', [AdmissionController::class, 'invoice']);
 
     Route::get('/admissions/{admission}/deposits/{deposit}/receipt.pdf', [PdfController::class, 'depositReceipt']);
     Route::get('/admissions/{admission}/invoice.pdf', [PdfController::class, 'admissionInvoice']);

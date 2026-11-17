@@ -10,6 +10,7 @@ use App\Http\Requests\RegisterAdmissionRequest;
 use App\Http\Requests\StoreAdmissionRequest;
 use App\Http\Requests\UpdateAdmissionRequest;
 use App\Models\Admission;
+use App\Models\AdmissionDeposit;
 use App\Models\FacilitySetting;
 use App\Models\Patient;
 use App\Services\AdmissionService;
@@ -200,5 +201,39 @@ class AdmissionController extends Controller
         $admission = $this->admissionService->cancel($admission, $request->validated(), $request->user());
 
         return response()->json($admission->load($this->showRelations()));
+    }
+
+    public function invoice(Admission $admission): JsonResponse
+    {
+        $admission->loadMissing('patient');
+        $charges = $this->invoiceService->previewCharges($admission);
+
+        return response()->json([
+            'admission_id' => $admission->id,
+            'patient' => $admission->patient,
+            'requested_services' => $charges['requested_services'],
+            'services_total' => $charges['services_total'],
+            'operations_total' => $charges['operations_total'],
+            'total' => $charges['total'],
+            'deposits' => $charges['deposits'],
+            'deposits_total' => $charges['deposits_total'],
+            'balance_due' => $charges['balance_due'],
+        ]);
+    }
+
+    public function deposits(Admission $admission): JsonResponse
+    {
+        return response()->json($admission->deposits()->with(['paidBy', 'paymentMethod'])->latest('paid_at')->get());
+    }
+
+    public function destroyDeposit(Admission $admission, AdmissionDeposit $deposit): JsonResponse
+    {
+        abort_unless($deposit->admission_id === $admission->id, Response::HTTP_NOT_FOUND);
+
+        $admission->assertMutable();
+
+        $deposit->delete();
+
+        return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 }

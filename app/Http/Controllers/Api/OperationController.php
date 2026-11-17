@@ -124,7 +124,7 @@ class OperationController extends Controller
 
     /**
      * Records a deposit toward the operation's price, for the given amount — which may
-     * be partial. Individual payments are later removed via AdmissionDepositController::destroy,
+     * be partial. Individual payments are later removed via AdmissionController::destroyDeposit,
      * not reverted as a whole, so multiple deposits can accumulate per operation.
      */
     public function pay(PayOperationRequest $request, Operation $operation): JsonResponse
