@@ -24,6 +24,7 @@ class FacilitySetting extends Model
         'use_watermark',
         'notify_referring_doctor_whatsapp',
         'show_patient_relative_fields',
+        'show_insurance_fields',
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ class FacilitySetting extends Model
         'use_watermark' => 'boolean',
         'notify_referring_doctor_whatsapp' => 'boolean',
         'show_patient_relative_fields' => 'boolean',
+        'show_insurance_fields' => 'boolean',
     ];
 
     protected $appends = [
@@ -48,6 +50,7 @@ class FacilitySetting extends Model
             'use_watermark' => false,
             'notify_referring_doctor_whatsapp' => true,
             'show_patient_relative_fields' => false,
+            'show_insurance_fields' => true,
         ]);
     }
 

@@ -33,6 +33,29 @@ class FacilitySettingControllerTest extends TestCase
         ]);
     }
 
+    public function test_insurance_fields_toggle_defaults_to_shown(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin, 'sanctum')->getJson('/api/settings/facility');
+
+        $response->assertOk()->assertJsonPath('show_insurance_fields', true);
+    }
+
+    public function test_admin_can_hide_the_insurance_fields(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/settings/facility', [
+            'show_insurance_fields' => '0',
+        ]);
+
+        $response->assertOk()->assertJsonPath('show_insurance_fields', false);
+        $this->assertDatabaseHas('facility_settings', [
+            'show_insurance_fields' => false,
+        ]);
+    }
+
     public function test_non_admin_cannot_view_facility_settings(): void
     {
         $user = User::factory()->create(['role' => 'nurse']);

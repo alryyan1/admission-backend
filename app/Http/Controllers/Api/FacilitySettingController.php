@@ -106,6 +106,10 @@ class FacilitySettingController extends Controller
             $setting->show_patient_relative_fields = $request->boolean('show_patient_relative_fields');
         }
 
+        if ($request->has('show_insurance_fields')) {
+            $setting->show_insurance_fields = $request->boolean('show_insurance_fields');
+        }
+
         $setting->save();
 
         return response()->json($setting->fresh());
